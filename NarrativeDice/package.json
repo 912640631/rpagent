@@ -1,0 +1,16 @@
+{
+  "name": "@ai-gm/narrative-dice",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": "./index.js",
+  "bin": {
+    "narrative-dice": "./cli.js"
+  },
+  "scripts": {
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

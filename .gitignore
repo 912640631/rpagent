@@ -1,0 +1,9 @@
+/.agents/
+/skills/
+combat参考/
+*.zip
+# npm workspaces and generated files (at any depth)
+node_modules/
+dist/
+coverage/
+/NarrativeDice/.local/

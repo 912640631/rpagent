@@ -1,0 +1,30 @@
+{
+  "name": "witcher-combat-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "default": "./dist/src/index.js"
+    }
+  },
+  "scripts": {
+    "prepare-data": "node scripts/prepare-data.mjs",
+    "build": "tsc -p tsconfig.json && node scripts/copy-data.mjs",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "engine": "tsx src/cli.ts",
+    "simulate": "tsx src/cli.ts simulate",
+    "coverage": "tsx src/cli.ts coverage"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "tsx": "^4.23.0",
+    "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "@ai-gm/narrative-dice": "0.1.0"
+  }
+}

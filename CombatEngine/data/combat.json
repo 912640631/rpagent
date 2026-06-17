@@ -1,0 +1,4515 @@
+{
+  "enums": {
+    "damage_rank": [
+      "none",
+      "light",
+      "heavy",
+      "severe"
+    ],
+    "initiative_side": [
+      "player",
+      "monster"
+    ],
+    "check_kind": [
+      "player_duality",
+      "monster_d20",
+      "fixed_difficulty",
+      "hostile"
+    ],
+    "action_kind": [
+      "full_action",
+      "bonus_action"
+    ]
+  },
+  "global": {
+    "dice": {
+      "player": {
+        "hope": "1d12",
+        "fear": "1d12"
+      },
+      "monster": {
+        "check": "1d20"
+      },
+      "environment_advantage": "1d6",
+      "environment_disadvantage": "-1d6"
+    },
+    "difficulty": {
+      "easy": 10,
+      "normal": 13,
+      "hard": 16,
+      "extreme": 19,
+      "ultimate": 22
+    },
+    "damage_rank": {
+      "hp_loss": {
+        "none": 0,
+        "light": 1,
+        "heavy": 2,
+        "severe": 3
+      },
+      "order": [
+        "none",
+        "light",
+        "heavy",
+        "severe"
+      ]
+    },
+    "part_trauma": {
+      "min": 0,
+      "max": 3,
+      "states": {
+        "0": "intact",
+        "1": "light",
+        "2": "heavy",
+        "3": "destroyed"
+      },
+      "increase_by_final_damage_rank": {
+        "none": 0,
+        "light": 1,
+        "heavy": 2,
+        "severe": 3
+      },
+      "same_part_numeric_penalty_cap": -3
+    },
+    "fear": {
+      "gm_initial": 1,
+      "generic_empowerments": {
+        "empower_hit": {
+          "cost": {
+            "fear": 1
+          },
+          "per_attack_max_uses": 1,
+          "effects": [
+            {
+              "type": "check_modifier_die",
+              "value": "1d6"
+            }
+          ]
+        },
+        "empower_damage": {
+          "cost": {
+            "fear": 1
+          },
+          "per_attack_max_uses": 1,
+          "effects": [
+            {
+              "type": "add_base_damage_die",
+              "count": 1
+            }
+          ]
+        }
+      }
+    },
+    "signs": {
+      "aard": {
+        "name_zh": "阿尔德",
+        "cost": {
+          "sign_points": 1
+        },
+        "check": {
+          "type": "player_hostile"
+        },
+        "is_attack": false,
+        "part_targeting": false,
+        "on_success": {
+          "mode": "choose_one",
+          "choices": [
+            {
+              "id": "interrupt",
+              "effects": [
+                {
+                  "type": "interrupt_prepared_action"
+                }
+              ]
+            },
+            {
+              "id": "unbalance",
+              "effects": [
+                {
+                  "type": "apply_status",
+                  "status": "unbalanced",
+                  "stacks": 2
+                }
+              ]
+            }
+          ]
+        },
+        "on_critical": {
+          "mode": "apply_all_success_choices"
+        },
+        "damage": null
+      },
+      "igni": {
+        "name_zh": "伊格尼",
+        "cost": {
+          "sign_points": 1
+        },
+        "check": {
+          "type": "player_hostile"
+        },
+        "is_attack": true,
+        "part_targeting": false,
+        "damage": {
+          "formula": "2d6",
+          "damage_type": "fire"
+        },
+        "on_hit": [
+          {
+            "type": "apply_status",
+            "status": "burning",
+            "stacks": 2
+          }
+        ],
+        "on_critical": [
+          {
+            "type": "override_applied_status_stacks",
+            "status": "burning",
+            "stacks": 3
+          },
+          {
+            "type": "increase_damage_rank",
+            "steps": 1
+          }
+        ]
+      },
+      "yrden": {
+        "name_zh": "亚登",
+        "cost": {
+          "sign_points": 1
+        },
+        "check": {
+          "type": "fixed_difficulty",
+          "difficulty": 10
+        },
+        "target_count": 1,
+        "duration": {
+          "type": "target_completed_full_actions_after_apply",
+          "count": 3
+        },
+        "modifiers": [
+          {
+            "stat": "defense",
+            "value": -2
+          },
+          {
+            "stat": "attack_check",
+            "value": -2
+          }
+        ],
+        "restrictions": [
+          "incorporeal",
+          "phase_movement",
+          "supernatural_dodge",
+          "similar_untargetable_ability"
+        ],
+        "ghosts_become_normally_attackable": true,
+        "max_simultaneous_instances": 1
+      },
+      "quen": {
+        "name_zh": "昆恩",
+        "cost": {
+          "sign_points": 1
+        },
+        "check": {
+          "type": "fixed_difficulty",
+          "difficulty": 10
+        },
+        "creates": "quen_shield",
+        "duration_end_any": [
+          {
+            "type": "incoming_damage_would_lose_hp_before_quen"
+          },
+          {
+            "type": "caster_completed_full_actions_after_apply",
+            "count": 3
+          }
+        ],
+        "on_trigger": [
+          {
+            "type": "reduce_damage_rank",
+            "steps": 1
+          },
+          {
+            "type": "remove_self"
+          }
+        ]
+      },
+      "axii": {
+        "name_zh": "亚克席",
+        "cost": {
+          "sign_points": 1
+        },
+        "check": {
+          "type": "player_hostile"
+        },
+        "on_success": [
+          {
+            "type": "apply_status",
+            "status": "hesitant",
+            "stacks": 2
+          }
+        ],
+        "on_critical": [
+          {
+            "type": "grant_temporary_check_modifier",
+            "target_scope": "same_target_hostile_checks",
+            "modifier_die": "1d6",
+            "uses": 2,
+            "expires": "battle_end_or_uses_exhausted"
+          }
+        ],
+        "mental_resistance": {
+          "trait_id": "mental_resistance",
+          "target_defense_modifier": 2
+        }
+      }
+    },
+    "potions": {
+      "thunderbolt": {
+        "name_zh": "雷霆",
+        "toxicity": 1,
+        "apply": [
+          {
+            "type": "grant_counter_effect",
+            "effect": "thunderbolt",
+            "uses": 3
+          }
+        ],
+        "effect": {
+          "trigger": "sword_attack_check",
+          "damage_modifier": "1d6",
+          "consume_on_check_even_on_miss": true,
+          "expires_on_battle_end": true
+        }
+      },
+      "swallow": {
+        "name_zh": "燕子",
+        "toxicity": 1,
+        "apply": [
+          {
+            "type": "heal_hp",
+            "amount": 2,
+            "cap": "max_hp"
+          }
+        ],
+        "cannot_restore": [
+          "armor",
+          "sign_points"
+        ]
+      },
+      "golden_oriole": {
+        "name_zh": "金莺",
+        "toxicity": 1,
+        "apply": [
+          {
+            "type": "clear_status",
+            "status": "poisoned"
+          },
+          {
+            "type": "grant_immunity",
+            "status": "poisoned",
+            "duration": {
+              "type": "actor_completed_full_actions_after_apply",
+              "count": 2
+            }
+          }
+        ]
+      },
+      "tawny_owl": {
+        "name_zh": "黄褐色猫头鹰",
+        "toxicity": 1,
+        "apply": [
+          {
+            "type": "restore_resource",
+            "resource": "sign_points",
+            "amount": 2,
+            "cap": "max"
+          }
+        ]
+      }
+    },
+    "status_families": {
+      "persistent_damage": {
+        "classification": "special_persistent_damage",
+        "decrement_per_action": 1,
+        "ends_at_counter": 0
+      }
+    },
+    "statuses": {
+      "burning": {
+        "name_zh": "着火",
+        "family": "persistent_damage",
+        "counter": "stacks",
+        "reapply": {
+          "mode": "keep_higher"
+        },
+        "damage_per_action": 1,
+        "clear_action": {
+          "type": "no_check_full_action",
+          "name_zh": "灭火"
+        }
+      },
+      "poisoned": {
+        "name_zh": "中毒",
+        "family": "persistent_damage",
+        "counter": "stacks",
+        "reapply": {
+          "mode": "keep_higher"
+        },
+        "modifiers": [
+          {
+            "scope": "active_combat_checks",
+            "value": -2
+          },
+          {
+            "scope": "defense",
+            "value": -1
+          }
+        ],
+        "damage_per_action": 1
+      },
+      "bleeding": {
+        "name_zh": "流血",
+        "family": "persistent_damage",
+        "counter": "stacks",
+        "reapply": {
+          "mode": "no_stack"
+        },
+        "damage_per_action": 1,
+        "clear_action": {
+          "type": "no_check_full_action",
+          "name_zh": "处理伤口"
+        }
+      },
+      "unbalanced": {
+        "name_zh": "失衡",
+        "counter": "remaining_uses",
+        "reapply": {
+          "mode": "add_remaining"
+        },
+        "on_incoming_hostile_check": [
+          {
+            "type": "attacker_check_modifier_die",
+            "value": "1d6",
+            "max_from_status_per_check": "1d6"
+          },
+          {
+            "type": "decrement_counter",
+            "amount": 1
+          }
+        ],
+        "ends_at_counter": 0
+      },
+      "hesitant": {
+        "name_zh": "迟疑",
+        "counter": "remaining_uses",
+        "reapply": {
+          "mode": "add_remaining"
+        },
+        "while_taking_full_action": {
+          "forbid": [
+            "fear_empowerment",
+            "other_marked_empowerment"
+          ],
+          "if_check_required": [
+            {
+              "type": "check_modifier_die",
+              "value": "-1d6",
+              "max_from_status_per_action": "-1d6"
+            }
+          ]
+        },
+        "on_owner_full_action_end": [
+          {
+            "type": "decrement_counter",
+            "amount": 1
+          }
+        ],
+        "ends_at_counter": 0
+      },
+      "blinded": {
+        "name_zh": "目盲",
+        "counter": "remaining_uses",
+        "reapply": {
+          "mode": "keep_higher"
+        },
+        "while_taking_full_action": {
+          "if_check_required": [
+            {
+              "type": "check_modifier_die",
+              "value": "-1d6",
+              "max_from_status_per_action": "-1d6"
+            }
+          ]
+        },
+        "on_owner_full_action_end": [
+          {
+            "type": "decrement_counter",
+            "amount": 1
+          }
+        ],
+        "ends_at_counter": 0
+      },
+      "spined": {
+        "name_zh": "棘刺竖起",
+        "counter": "remaining_uses",
+        "reapply": {
+          "mode": "keep_higher"
+        },
+        "on_incoming_melee_hit": [
+          {
+            "type": "direct_hp_loss_to_attacker",
+            "amount": 1,
+            "classification": "special_retaliation_damage"
+          }
+        ],
+        "on_owner_full_action_end": [
+          {
+            "type": "decrement_counter",
+            "amount": 1
+          }
+        ],
+        "ends_at_counter": 0
+      }
+    },
+    "duality": {
+      "failure_with_fear_gm_fear_gain": 1
+    },
+    "action": {
+      "max_bonus_actions_gained_per_full_action": 1,
+      "current_bonus_action_allowed_uses": [
+        "drink_potion"
+      ]
+    },
+    "critical": {
+      "damage_rank_increase_steps_if_base_damage_gt_zero": 1,
+      "apply_bleeding_if_final_damage_rank": "severe"
+    },
+    "toxicity": {
+      "saturation_when_current_equals_max": true,
+      "saturation_defense_modifier": -1,
+      "reset_current_to": 0,
+      "reset_timing": "battle_end"
+    },
+    "dying_choice": {
+      "trigger_hp": 0,
+      "gamble_roll": {
+        "hope": "1d12",
+        "fear": "1d12",
+        "modifier": 0
+      },
+      "hope_gt_fear": {
+        "restore_hp": 2,
+        "gain_initiative": true
+      },
+      "fear_gt_hope": {
+        "result": "death_game_over"
+      },
+      "equal": {
+        "restore_hp": 3,
+        "gain_initiative": true
+      }
+    },
+    "monster_difficulty_scale": {
+      "min": 1,
+      "max": 20,
+      "scope": "single_monster",
+      "name_zh": "单体威胁难度",
+      "description_zh": "衡量一只怪物对当前杰洛特模板的综合威胁。",
+      "anchors": {
+        "1": "普通人也可能独自应付的弱小野兽或杂兵",
+        "5": "需要猎魔人认真应战的常见怪物",
+        "10": "危险的专业猎杀目标",
+        "15": "高危精英或强力大型怪物",
+        "20": "接近本战斗数据尺度上限的首领级威胁"
+      }
+    },
+    "armor": {
+      "absorb_from_rank": "light",
+      "points_per_hit": 1,
+      "reduce_rank_steps": 1,
+      "broken_at": 0,
+      "broken_defense_modifier": -3,
+      "recover_at": 1
+    },
+    "environment_modifier_scope": "attack_hit_check_only"
+  },
+  "actors": {
+    "geralt": {
+      "id": "geralt",
+      "name_zh": "杰洛特",
+      "kind": "player_character",
+      "stats": {
+        "defense": 12,
+        "hp": {
+          "current": 6,
+          "max": 6
+        },
+        "damage_thresholds": {
+          "heavy": 9,
+          "severe": 16
+        },
+        "armor": {
+          "current": 3,
+          "max": 3
+        },
+        "sign_points": {
+          "current": 3,
+          "max": 3
+        },
+        "toxicity": {
+          "current": 0,
+          "max": 3
+        }
+      },
+      "state": {
+        "quen_active": false,
+        "statuses": []
+      },
+      "weapons": {
+        "silver_sword": {
+          "name_zh": "银剑",
+          "attacks": {
+            "normal": {
+              "name_zh": "普通攻击",
+              "attack_modifier": 0,
+              "damage": "2d8+2"
+            },
+            "heavy": {
+              "name_zh": "重击",
+              "attack_modifier": -2,
+              "damage": "3d8+2"
+            }
+          }
+        }
+      },
+      "inventory": {
+        "potions": [
+          "thunderbolt",
+          "swallow",
+          "golden_oriole",
+          "tawny_owl"
+        ]
+      }
+    },
+    "manticore_test": {
+      "id": "manticore_test",
+      "name_zh": "蝎尾狮",
+      "kind": "monster",
+      "monster_type": "hybrid_beast",
+      "stats": {
+        "defense": 14,
+        "base_attack_modifier": 0,
+        "hp": {
+          "current": 8,
+          "max": 8
+        },
+        "damage_thresholds": {
+          "heavy": 15,
+          "severe": 25
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -6,
+          "damage_multiplier": 3,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "forelimbs": {
+          "name_zh": "前肢",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -3
+              }
+            ]
+          }
+        },
+        "hindlimbs": {
+          "name_zh": "后肢",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -3
+              }
+            ]
+          }
+        },
+        "wings": {
+          "name_zh": "翅膀",
+          "grouped_part": true,
+          "attack_modifier": -2,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "tagged_action_modifier_die",
+                "tag": "requires_flight",
+                "value": "-1d6"
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "disable_tagged_actions",
+                "tag": "requires_flight"
+              }
+            ]
+          }
+        },
+        "tail_stinger": {
+          "name_zh": "尾刺",
+          "attack_modifier": -2,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "tagged_attack_modifier_die",
+                "tag": "requires_tail_stinger",
+                "value": "-1d6"
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "disable_tagged_actions",
+                "tag": "requires_tail_stinger"
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "普通攻击",
+          "cost": {},
+          "damage": "2d8+3",
+          "narrative_forms": [
+            "爪击",
+            "撕咬",
+            "撞击",
+            "扑击",
+            "尾巴横扫"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "venomous_tail_sting": {
+          "name_zh": "剧毒尾刺",
+          "cost": {
+            "fear": 1
+          },
+          "tags": [
+            "requires_tail_stinger"
+          ],
+          "damage": "2d8+3",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "poisoned",
+              "stacks": 2
+            }
+          ]
+        },
+        "diving_assault": {
+          "name_zh": "俯冲猛袭",
+          "cost": {
+            "fear": 1
+          },
+          "tags": [
+            "requires_flight"
+          ],
+          "check_modifier_die": "1d8",
+          "damage": "3d8+3",
+          "on_miss": [
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 1,
+              "target": "self"
+            }
+          ]
+        }
+      },
+      "actions": {
+        "flying_escape": {
+          "name_zh": "飞行逃跑",
+          "tags": [
+            "requires_flight"
+          ],
+          "when_uncertain_check": {
+            "type": "monster_fixed_difficulty",
+            "difficulty": 13
+          }
+        }
+      },
+      "traits": {
+        "mental_resistance": {
+          "name_zh": "精神抗性",
+          "effects": [
+            {
+              "type": "vs_sign_defense_modifier",
+              "sign": "axii",
+              "value": 2
+            }
+          ]
+        },
+        "poison_immunity": {
+          "name_zh": "毒素免疫",
+          "immunities": [
+            "poisoned"
+          ]
+        },
+        "yrden_weakness": {
+          "name_zh": "亚登弱点",
+          "while_affected_by": "yrden",
+          "effects": [
+            {
+              "type": "suppress_positive_rule_modifier_dice_from_tagged_ability",
+              "tag": "requires_flight"
+            }
+          ],
+          "does_not": [
+            "directly_remove_flight_ability",
+            "count_as_wing_trauma"
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      },
+      "difficulty": 14
+    },
+    "griffin": {
+      "id": "griffin",
+      "name_zh": "狮鹫",
+      "kind": "monster",
+      "monster_type": "hybrid_beast",
+      "stats": {
+        "defense": 13,
+        "base_attack_modifier": 0,
+        "hp": {
+          "current": 7,
+          "max": 7
+        },
+        "damage_thresholds": {
+          "heavy": 14,
+          "severe": 23
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -6,
+          "damage_multiplier": 3,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "wings": {
+          "name_zh": "翅膀",
+          "grouped_part": true,
+          "attack_modifier": -2,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "tagged_action_modifier_die",
+                "tag": "requires_flight",
+                "value": "-1d6"
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "disable_tagged_actions",
+                "tag": "requires_flight"
+              }
+            ]
+          }
+        },
+        "talons": {
+          "name_zh": "鹰爪",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "tagged_attack_modifier_die",
+                "tag": "requires_talons",
+                "value": "-1d6"
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "disable_tagged_actions",
+                "tag": "requires_talons"
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "啄击与爪击",
+          "cost": {},
+          "damage": "2d8+2",
+          "narrative_forms": [
+            "啄击",
+            "翼击",
+            "扑咬"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "diving_talon": {
+          "name_zh": "俯冲裂爪",
+          "cost": {
+            "fear": 1
+          },
+          "tags": [
+            "requires_flight",
+            "requires_talons"
+          ],
+          "check_modifier_die": "1d6",
+          "damage": "3d8+2",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "bleeding",
+              "stacks": 1
+            }
+          ]
+        },
+        "shriek_and_buffet": {
+          "name_zh": "尖啸振翼",
+          "cost": {
+            "fear": 1
+          },
+          "tags": [
+            "requires_flight"
+          ],
+          "damage": "1d8+2",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 2
+            }
+          ]
+        }
+      },
+      "actions": {},
+      "traits": {
+        "fearless_predator": {
+          "name_zh": "悍勇掠食者",
+          "effects": [
+            {
+              "type": "immunity",
+              "scope": "fear_or_morale"
+            }
+          ]
+        },
+        "aard_grounding_weakness": {
+          "name_zh": "阿尔德制空弱点",
+          "effects": [
+            {
+              "type": "on_hit_by_sign",
+              "sign": "aard",
+              "effect": {
+                "type": "temporarily_disable_tagged_actions",
+                "tag": "requires_flight",
+                "until": "owner_completed_next_full_action"
+              }
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      },
+      "difficulty": 11
+    },
+    "leshen": {
+      "id": "leshen",
+      "name_zh": "鹿首精",
+      "kind": "monster",
+      "monster_type": "relict",
+      "stats": {
+        "defense": 15,
+        "base_attack_modifier": 1,
+        "hp": {
+          "current": 10,
+          "max": 10
+        },
+        "damage_thresholds": {
+          "heavy": 17,
+          "severe": 28
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "skull": {
+          "name_zh": "鹿骨头颅",
+          "attack_modifier": -6,
+          "damage_multiplier": 2.5,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "树躯",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "arms": {
+          "name_zh": "枝臂",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -3
+              }
+            ]
+          }
+        },
+        "root_core": {
+          "name_zh": "根核",
+          "attack_modifier": -4,
+          "damage_multiplier": 1.3,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "tagged_attack_modifier_die",
+                "tag": "forest_magic",
+                "value": "-1d6"
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "disable_tagged_actions",
+                "tag": "forest_magic"
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "巨爪横扫",
+          "cost": {},
+          "damage": "2d8+3",
+          "narrative_forms": [
+            "枝爪横扫",
+            "重踏",
+            "鹿角撞击"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "root_impalement": {
+          "name_zh": "地根穿刺",
+          "cost": {
+            "fear": 1
+          },
+          "tags": [
+            "forest_magic"
+          ],
+          "check_modifier_die": "1d6",
+          "damage": "2d8+3",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 2
+            }
+          ]
+        },
+        "raven_swarm": {
+          "name_zh": "鸦群啄袭",
+          "cost": {
+            "fear": 1
+          },
+          "tags": [
+            "forest_magic"
+          ],
+          "damage": "1d8+2",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "blinded",
+              "stacks": 1
+            }
+          ]
+        }
+      },
+      "actions": {
+        "call_wolves": {
+          "name_zh": "呼唤狼群",
+          "cost": {
+            "fear": 1
+          },
+          "tags": [
+            "forest_magic"
+          ],
+          "effects": [
+            {
+              "type": "apply_status",
+              "target": "player",
+              "status": "hesitant",
+              "stacks": 1
+            },
+            {
+              "type": "grant_next_attack_modifier_die",
+              "value": "1d6"
+            }
+          ]
+        }
+      },
+      "traits": {
+        "axii_immunity": {
+          "name_zh": "古老心智",
+          "immunities": [
+            "axii"
+          ]
+        },
+        "igni_weakness": {
+          "name_zh": "惧火木躯",
+          "effects": [
+            {
+              "type": "increase_incoming_damage_rank_if",
+              "condition": {
+                "damage_type": "fire"
+              },
+              "steps": 1
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      },
+      "difficulty": 18
+    },
+    "noonwraith": {
+      "id": "noonwraith",
+      "name_zh": "正午妖灵",
+      "kind": "monster",
+      "monster_type": "specter",
+      "stats": {
+        "defense": 15,
+        "base_attack_modifier": 0,
+        "hp": {
+          "current": 6,
+          "max": 6
+        },
+        "damage_thresholds": {
+          "heavy": 12,
+          "severe": 21
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "怨灵头颅",
+          "attack_modifier": -6,
+          "damage_multiplier": 2.5,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "幽灵躯体",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "arms": {
+          "name_zh": "枯臂",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -3
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "幽爪斩击",
+          "cost": {},
+          "damage": "2d6+2",
+          "narrative_forms": [
+            "幽爪",
+            "镰状挥击",
+            "贴身撕扯"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "phase_strike": {
+          "name_zh": "虚体突现",
+          "cost": {
+            "fear": 1
+          },
+          "check_modifier_die": "1d6",
+          "damage": "2d8+2",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 1
+            }
+          ]
+        },
+        "sun_dust": {
+          "name_zh": "灼光尘暴",
+          "cost": {
+            "fear": 1
+          },
+          "damage": "1d6+1",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "blinded",
+              "stacks": 2
+            }
+          ]
+        }
+      },
+      "actions": {
+        "split_phantoms": {
+          "name_zh": "分裂幻影",
+          "cost": {
+            "fear": 1
+          },
+          "effects": [
+            {
+              "type": "heal_hp",
+              "amount": 1,
+              "cap": "max_hp"
+            },
+            {
+              "type": "grant_temporary_stat_modifier",
+              "stat": "defense",
+              "value": 2,
+              "duration": {
+                "type": "owner_completed_full_actions_after_apply",
+                "count": 1
+              }
+            }
+          ]
+        }
+      },
+      "traits": {
+        "incorporeal": {
+          "name_zh": "虚体",
+          "effects": [
+            {
+              "type": "modifier",
+              "stat": "defense",
+              "value": 2,
+              "tag": "incorporeal_bonus"
+            }
+          ]
+        },
+        "specter_immunities": {
+          "name_zh": "妖灵体质",
+          "immunities": [
+            "burning",
+            "poisoned",
+            "bleeding"
+          ]
+        },
+        "yrden_weakness": {
+          "name_zh": "亚登显形",
+          "while_affected_by": "yrden",
+          "effects": [
+            {
+              "type": "suppress_tagged_trait_effect",
+              "tag": "incorporeal_bonus"
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      },
+      "difficulty": 10
+    },
+    "werewolf": {
+      "id": "werewolf",
+      "name_zh": "狼人",
+      "kind": "monster",
+      "monster_type": "cursed_one",
+      "stats": {
+        "defense": 14,
+        "base_attack_modifier": 1,
+        "hp": {
+          "current": 8,
+          "max": 8
+        },
+        "damage_thresholds": {
+          "heavy": 14,
+          "severe": 24
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -6,
+          "damage_multiplier": 3,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "forelimbs": {
+          "name_zh": "前肢",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -3
+              }
+            ]
+          }
+        },
+        "hindlimbs": {
+          "name_zh": "后肢",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -3
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "狂暴爪咬",
+          "cost": {},
+          "damage": "2d8+2",
+          "narrative_forms": [
+            "爪击",
+            "撕咬",
+            "肩撞"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "savage_lunge": {
+          "name_zh": "猎杀扑击",
+          "cost": {
+            "fear": 1
+          },
+          "check_modifier_die": "1d6",
+          "damage": "3d8+2",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "bleeding",
+              "stacks": 1
+            }
+          ]
+        },
+        "feral_howl": {
+          "name_zh": "兽性嚎叫",
+          "cost": {
+            "fear": 1
+          },
+          "damage": null,
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "hesitant",
+              "stacks": 2
+            }
+          ]
+        }
+      },
+      "actions": {},
+      "traits": {
+        "rapid_regeneration": {
+          "name_zh": "高速再生",
+          "effects": [
+            {
+              "type": "on_owner_full_action_end",
+              "if_not_status_any": [
+                "burning",
+                "poisoned",
+                "bleeding"
+              ],
+              "effect": {
+                "type": "heal_hp",
+                "amount": 1,
+                "cap": "max_hp"
+              }
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      },
+      "difficulty": 12
+    },
+    "foglet": {
+      "id": "foglet",
+      "name_zh": "雾妖",
+      "kind": "monster",
+      "monster_type": "necrophage",
+      "stats": {
+        "defense": 15,
+        "base_attack_modifier": 1,
+        "hp": {
+          "current": 5,
+          "max": 5
+        },
+        "damage_thresholds": {
+          "heavy": 11,
+          "severe": 19
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -6,
+          "damage_multiplier": 3,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "claws": {
+          "name_zh": "利爪",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -3
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "雾中利爪",
+          "cost": {},
+          "damage": "2d6+2",
+          "narrative_forms": [
+            "利爪",
+            "撕咬",
+            "侧扑"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "mist_ambush": {
+          "name_zh": "雾隐伏击",
+          "cost": {
+            "fear": 1
+          },
+          "check_modifier_die": "1d8",
+          "damage": "2d8+2",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 1
+            }
+          ]
+        },
+        "false_double": {
+          "name_zh": "幻象夹击",
+          "cost": {
+            "fear": 1
+          },
+          "check_modifier_die": "1d6",
+          "damage": "1d8+2",
+          "on_miss": [
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 1,
+              "target": "player"
+            }
+          ]
+        }
+      },
+      "actions": {
+        "vanish_into_fog": {
+          "name_zh": "融入迷雾",
+          "cost": {
+            "fear": 1
+          },
+          "effects": [
+            {
+              "type": "grant_temporary_stat_modifier",
+              "stat": "defense",
+              "value": 2,
+              "duration": {
+                "type": "owner_completed_full_actions_after_apply",
+                "count": 1
+              }
+            },
+            {
+              "type": "grant_next_attack_modifier_die",
+              "value": "1d6"
+            }
+          ]
+        }
+      },
+      "traits": {
+        "moon_dust_weakness": {
+          "name_zh": "月之尘克制",
+          "effects": [
+            {
+              "type": "suppress_action",
+              "action": "vanish_into_fog",
+              "while_status_or_effect": "moon_dust"
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      },
+      "difficulty": 8
+    },
+    "fiend": {
+      "id": "fiend",
+      "name_zh": "恶魔",
+      "kind": "monster",
+      "monster_type": "relict",
+      "stats": {
+        "defense": 13,
+        "base_attack_modifier": 1,
+        "hp": {
+          "current": 11,
+          "max": 11
+        },
+        "damage_thresholds": {
+          "heavy": 18,
+          "severe": 30
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -6,
+          "damage_multiplier": 2.5,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "third_eye": {
+          "name_zh": "第三眼",
+          "attack_modifier": -5,
+          "damage_multiplier": 0.5,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "tagged_action_modifier_die",
+                "tag": "requires_third_eye",
+                "value": "-1d6"
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "disable_tagged_actions",
+                "tag": "requires_third_eye"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "厚皮躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 0.9,
+          "trauma_track": false
+        },
+        "forelimbs": {
+          "name_zh": "前肢",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -3
+              }
+            ]
+          }
+        },
+        "hindlimbs": {
+          "name_zh": "后肢",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -3
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "巨爪与犄角",
+          "cost": {},
+          "damage": "2d8+4",
+          "narrative_forms": [
+            "巨爪横扫",
+            "角顶",
+            "撕咬"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "bull_charge": {
+          "name_zh": "狂牛冲锋",
+          "cost": {
+            "fear": 1
+          },
+          "check_modifier_die": "1d6",
+          "damage": "3d8+4",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 2
+            }
+          ]
+        }
+      },
+      "actions": {
+        "third_eye_hypnosis": {
+          "name_zh": "第三眼催眠",
+          "cost": {
+            "fear": 1
+          },
+          "tags": [
+            "requires_third_eye"
+          ],
+          "check": {
+            "type": "monster_d20",
+            "target": "player_defense"
+          },
+          "on_success": [
+            {
+              "type": "apply_status",
+              "status": "hesitant",
+              "stacks": 2
+            },
+            {
+              "type": "grant_next_attack_modifier_die",
+              "value": "1d6"
+            }
+          ]
+        }
+      },
+      "traits": {
+        "aard_immunity": {
+          "name_zh": "庞然不动",
+          "immunities": [
+            "aard_knockback"
+          ]
+        },
+        "thick_hide": {
+          "name_zh": "厚硬兽皮",
+          "effects": [
+            {
+              "type": "reduce_incoming_damage_rank_if",
+              "condition": {
+                "final_roll_below": 9
+              },
+              "steps": 1
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      },
+      "difficulty": 19
+    },
+    "katakan": {
+      "id": "katakan",
+      "name_zh": "卡塔卡恩",
+      "kind": "monster",
+      "monster_type": "vampire",
+      "stats": {
+        "defense": 16,
+        "base_attack_modifier": 1,
+        "hp": {
+          "current": 8,
+          "max": 8
+        },
+        "damage_thresholds": {
+          "heavy": 14,
+          "severe": 24
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -6,
+          "damage_multiplier": 3,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "claws": {
+          "name_zh": "利爪",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -3
+              }
+            ]
+          }
+        },
+        "legs": {
+          "name_zh": "后肢",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -3
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "吸血鬼利爪",
+          "cost": {},
+          "damage": "2d8+2",
+          "narrative_forms": [
+            "利爪",
+            "撕咬",
+            "背袭"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "invisible_pounce": {
+          "name_zh": "隐形扑杀",
+          "cost": {
+            "fear": 1
+          },
+          "check_modifier_die": "1d8",
+          "damage": "3d8+2",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "bleeding",
+              "stacks": 1
+            }
+          ]
+        },
+        "blood_feast": {
+          "name_zh": "饮血",
+          "cost": {
+            "fear": 1
+          },
+          "damage": "2d8+2",
+          "on_hit": [
+            {
+              "type": "heal_hp",
+              "target": "self",
+              "amount": 1,
+              "cap": "max_hp"
+            }
+          ]
+        }
+      },
+      "actions": {
+        "cloak": {
+          "name_zh": "潜入无形",
+          "cost": {
+            "fear": 1
+          },
+          "effects": [
+            {
+              "type": "grant_temporary_stat_modifier",
+              "stat": "defense",
+              "value": 2,
+              "duration": {
+                "type": "until_next_attack"
+              }
+            },
+            {
+              "type": "grant_next_attack_modifier_die",
+              "value": "1d6"
+            }
+          ]
+        }
+      },
+      "traits": {
+        "regeneration": {
+          "name_zh": "吸血再生",
+          "effects": [
+            {
+              "type": "on_owner_full_action_end",
+              "effect": {
+                "type": "heal_hp",
+                "amount": 1,
+                "cap": "max_hp"
+              }
+            }
+          ]
+        },
+        "yrden_weakness": {
+          "name_zh": "亚登迟滞",
+          "while_affected_by": "yrden",
+          "effects": [
+            {
+              "type": "suppress_action",
+              "action": "cloak"
+            },
+            {
+              "type": "modifier",
+              "stat": "defense",
+              "value": -1
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      },
+      "difficulty": 14
+    },
+    "bruxa": {
+      "id": "bruxa",
+      "name_zh": "布鲁克萨",
+      "kind": "monster",
+      "monster_type": "vampire",
+      "stats": {
+        "defense": 17,
+        "base_attack_modifier": 2,
+        "hp": {
+          "current": 7,
+          "max": 7
+        },
+        "damage_thresholds": {
+          "heavy": 13,
+          "severe": 22
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -6,
+          "damage_multiplier": 3,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "arms": {
+          "name_zh": "手臂",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -3
+              }
+            ]
+          }
+        },
+        "legs": {
+          "name_zh": "双腿",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -3
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "迅捷爪袭",
+          "cost": {},
+          "damage": "2d8+2",
+          "narrative_forms": [
+            "爪击",
+            "瞬身撕裂",
+            "撕咬"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "sonic_scream": {
+          "name_zh": "震魂尖啸",
+          "cost": {
+            "fear": 1
+          },
+          "check_modifier_die": "1d6",
+          "damage": "1d8+2",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 2
+            },
+            {
+              "type": "apply_status",
+              "status": "hesitant",
+              "stacks": 1
+            }
+          ]
+        },
+        "blood_drink": {
+          "name_zh": "掠血咬击",
+          "cost": {
+            "fear": 1
+          },
+          "check_modifier_die": "1d6",
+          "damage": "2d8+2",
+          "on_hit": [
+            {
+              "type": "heal_hp",
+              "target": "self",
+              "amount": 1,
+              "cap": "max_hp"
+            }
+          ]
+        }
+      },
+      "actions": {
+        "vanish": {
+          "name_zh": "消隐",
+          "cost": {
+            "fear": 1
+          },
+          "effects": [
+            {
+              "type": "grant_temporary_stat_modifier",
+              "stat": "defense",
+              "value": 2,
+              "duration": {
+                "type": "until_next_attack"
+              }
+            },
+            {
+              "type": "grant_next_attack_modifier_die",
+              "value": "1d8"
+            }
+          ]
+        }
+      },
+      "traits": {
+        "fearless": {
+          "name_zh": "无惧",
+          "effects": [
+            {
+              "type": "immunity",
+              "scope": "fear_or_morale"
+            }
+          ]
+        },
+        "yrden_weakness": {
+          "name_zh": "亚登束缚",
+          "while_affected_by": "yrden",
+          "effects": [
+            {
+              "type": "suppress_action",
+              "action": "vanish"
+            },
+            {
+              "type": "modifier",
+              "stat": "defense",
+              "value": -1
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      },
+      "difficulty": 15
+    },
+    "rotfiend": {
+      "id": "rotfiend",
+      "name_zh": "腐食魔",
+      "kind": "monster",
+      "monster_type": "necrophage",
+      "stats": {
+        "defense": 12,
+        "base_attack_modifier": 0,
+        "hp": {
+          "current": 4,
+          "max": 4
+        },
+        "damage_thresholds": {
+          "heavy": 9,
+          "severe": 16
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -6,
+          "damage_multiplier": 3,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "胀腐躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "legs": {
+          "name_zh": "双腿",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -3
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "疯咬乱抓",
+          "cost": {},
+          "damage": "2d6+2",
+          "narrative_forms": [
+            "爪击",
+            "撕咬",
+            "扑撞"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "frenzied_lunge": {
+          "name_zh": "濒死狂扑",
+          "cost": {
+            "fear": 1
+          },
+          "check_modifier_die": "1d6",
+          "damage": "2d8+2",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 1
+            }
+          ]
+        }
+      },
+      "actions": {},
+      "traits": {
+        "corpse_explosion": {
+          "name_zh": "尸爆",
+          "effects": [
+            {
+              "type": "on_death_if_not_status",
+              "status": "burning",
+              "effect": {
+                "type": "area_damage",
+                "damage": "2d8+2",
+                "target_scope": "all_other_actors",
+                "can_chain_trigger_same_trait": true
+              }
+            }
+          ]
+        },
+        "corpse_eater_immunities": {
+          "name_zh": "腐尸体质",
+          "immunities": [
+            "poisoned",
+            "bleeding"
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      },
+      "difficulty": 4
+    },
+    "drowner": {
+      "id": "drowner",
+      "name_zh": "水鬼",
+      "kind": "monster",
+      "monster_type": "necrophage",
+      "stats": {
+        "defense": 13,
+        "base_attack_modifier": 0,
+        "hp": {
+          "current": 4,
+          "max": 4
+        },
+        "damage_thresholds": {
+          "heavy": 9,
+          "severe": 16
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -6,
+          "damage_multiplier": 3,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "arms": {
+          "name_zh": "双臂",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -3
+              }
+            ]
+          }
+        },
+        "legs": {
+          "name_zh": "双腿",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -3
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "湿爪撕扯",
+          "cost": {},
+          "damage": "1d8+2",
+          "narrative_forms": [
+            "爪击",
+            "抓挠",
+            "撕咬"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "leaping_ambush": {
+          "name_zh": "跃扑伏击",
+          "cost": {
+            "fear": 1
+          },
+          "check_modifier_die": "1d6",
+          "damage": "2d8+2",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 2
+            }
+          ]
+        }
+      },
+      "actions": {},
+      "traits": {
+        "primitive_mind": {
+          "name_zh": "原始心智",
+          "immunities": [
+            "axii"
+          ]
+        },
+        "igni_weakness": {
+          "name_zh": "畏火湿躯",
+          "effects": [
+            {
+              "type": "increase_incoming_damage_rank_if",
+              "condition": {
+                "damage_type": "fire"
+              },
+              "steps": 1
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      },
+      "difficulty": 3
+    },
+    "cockatrice": {
+      "id": "cockatrice",
+      "name_zh": "鸡蛇",
+      "kind": "monster",
+      "monster_type": "draconid",
+      "stats": {
+        "defense": 14,
+        "base_attack_modifier": 1,
+        "hp": {
+          "current": 7,
+          "max": 7
+        },
+        "damage_thresholds": {
+          "heavy": 13,
+          "severe": 22
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -6,
+          "damage_multiplier": 3,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "wings": {
+          "name_zh": "翅膀",
+          "grouped_part": true,
+          "attack_modifier": -2,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "tagged_action_modifier_die",
+                "tag": "requires_flight",
+                "value": "-1d6"
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "disable_tagged_actions",
+                "tag": "requires_flight"
+              }
+            ]
+          }
+        },
+        "tail": {
+          "name_zh": "长尾",
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "tagged_attack_modifier_die",
+                "tag": "requires_tail",
+                "value": "-1d6"
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "disable_tagged_actions",
+                "tag": "requires_tail"
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "翼爪连击",
+          "cost": {},
+          "damage": "2d8+2",
+          "narrative_forms": [
+            "翼击",
+            "爪击",
+            "尾扫"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "beak_puncture": {
+          "name_zh": "致命啄刺",
+          "cost": {
+            "fear": 1
+          },
+          "check_modifier_die": "1d6",
+          "damage": "2d8+3",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "bleeding",
+              "stacks": 1
+            }
+          ]
+        },
+        "swooping_strike": {
+          "name_zh": "低空掠杀",
+          "cost": {
+            "fear": 1
+          },
+          "tags": [
+            "requires_flight"
+          ],
+          "check_modifier_die": "1d6",
+          "damage": "3d8+2"
+        },
+        "tail_whip": {
+          "name_zh": "长尾扫击",
+          "cost": {
+            "fear": 1
+          },
+          "tags": [
+            "requires_tail"
+          ],
+          "damage": "2d8+2",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 2
+            }
+          ]
+        }
+      },
+      "actions": {},
+      "traits": {
+        "poison_resistance": {
+          "name_zh": "毒素抗性",
+          "immunities": [
+            "poisoned"
+          ]
+        },
+        "aard_grounding_weakness": {
+          "name_zh": "阿尔德制空弱点",
+          "effects": [
+            {
+              "type": "on_hit_by_sign",
+              "sign": "aard",
+              "effect": {
+                "type": "temporarily_disable_tagged_actions",
+                "tag": "requires_flight",
+                "until": "owner_completed_next_full_action"
+              }
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      },
+      "difficulty": 10
+    },
+    "harpy": {
+      "id": "harpy",
+      "name_zh": "鹰身女妖",
+      "kind": "monster",
+      "monster_type": "hybrid_beast",
+      "stats": {
+        "defense": 13,
+        "base_attack_modifier": 0,
+        "hp": {
+          "current": 3,
+          "max": 3
+        },
+        "damage_thresholds": {
+          "heavy": 8,
+          "severe": 14
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -6,
+          "damage_multiplier": 3,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "wings": {
+          "name_zh": "翅膀",
+          "grouped_part": true,
+          "attack_modifier": -2,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "tagged_action_modifier_die",
+                "tag": "requires_flight",
+                "value": "-1d6"
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "disable_tagged_actions",
+                "tag": "requires_flight"
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "啄爪",
+          "cost": {},
+          "damage": "1d8+2",
+          "narrative_forms": [
+            "啄击",
+            "爪击",
+            "翼拍"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "flock_dive": {
+          "name_zh": "群落俯袭",
+          "cost": {
+            "fear": 1
+          },
+          "tags": [
+            "requires_flight"
+          ],
+          "check_modifier_die": "1d6",
+          "damage": "2d6+2",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 1
+            }
+          ]
+        }
+      },
+      "actions": {},
+      "traits": {
+        "clumsy_grounded": {
+          "name_zh": "落地笨拙",
+          "effects": [
+            {
+              "type": "while_tag_disabled",
+              "tag": "requires_flight",
+              "modifiers": [
+                {
+                  "stat": "defense",
+                  "value": -2
+                },
+                {
+                  "stat": "attack_check",
+                  "value": -1
+                }
+              ]
+            }
+          ]
+        },
+        "aard_grounding_weakness": {
+          "name_zh": "阿尔德制空弱点",
+          "effects": [
+            {
+              "type": "on_hit_by_sign",
+              "sign": "aard",
+              "effect": {
+                "type": "temporarily_disable_tagged_actions",
+                "tag": "requires_flight",
+                "until": "owner_completed_next_full_action"
+              }
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      },
+      "difficulty": 3
+    },
+    "alghoul": {
+      "id": "alghoul",
+      "name_zh": "食尸鬼首领",
+      "kind": "monster",
+      "monster_type": "necrophage",
+      "stats": {
+        "defense": 14,
+        "base_attack_modifier": 1,
+        "hp": {
+          "current": 7,
+          "max": 7
+        },
+        "damage_thresholds": {
+          "heavy": 12,
+          "severe": 21
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -6,
+          "damage_multiplier": 3,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "claws": {
+          "name_zh": "利爪",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -3
+              }
+            ]
+          }
+        },
+        "back_spines": {
+          "name_zh": "背刺",
+          "attack_modifier": -3,
+          "damage_multiplier": 0.7,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "reduce_status_effect",
+                "status": "spined",
+                "remaining_uses": 1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "disable_action",
+                "action": "raise_spines"
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "凶狠爪击",
+          "cost": {},
+          "damage": "2d8+2",
+          "narrative_forms": [
+            "利爪",
+            "撕咬",
+            "撞击"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "piercing_scream": {
+          "name_zh": "穿脑尖啸",
+          "cost": {
+            "fear": 1
+          },
+          "damage": null,
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "hesitant",
+              "stacks": 1
+            },
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 1
+            }
+          ]
+        }
+      },
+      "actions": {
+        "raise_spines": {
+          "name_zh": "竖起棘刺",
+          "cost": {
+            "fear": 1
+          },
+          "effects": [
+            {
+              "type": "apply_status",
+              "target": "self",
+              "status": "spined",
+              "stacks": 2
+            }
+          ]
+        }
+      },
+      "traits": {
+        "axii_weakness": {
+          "name_zh": "亚克席压制",
+          "effects": [
+            {
+              "type": "on_hit_by_sign",
+              "sign": "axii",
+              "effects": [
+                {
+                  "type": "clear_status",
+                  "status": "spined"
+                },
+                {
+                  "type": "temporarily_disable_action",
+                  "action": "raise_spines",
+                  "until": "owner_completed_next_full_action"
+                }
+              ]
+            }
+          ]
+        },
+        "poison_resistance": {
+          "name_zh": "食腐体质",
+          "immunities": [
+            "poisoned"
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      },
+      "difficulty": 9
+    },
+    "venomous_arachas": {
+      "id": "venomous_arachas",
+      "name_zh": "剧毒蟹蜘蛛",
+      "kind": "monster",
+      "monster_type": "insectoid",
+      "stats": {
+        "defense": 13,
+        "base_attack_modifier": 0,
+        "hp": {
+          "current": 9,
+          "max": 9
+        },
+        "damage_thresholds": {
+          "heavy": 16,
+          "severe": 26
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "口器与头部",
+          "attack_modifier": -5,
+          "damage_multiplier": 2.2,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "abdomen": {
+          "name_zh": "腹部",
+          "attack_modifier": -2,
+          "damage_multiplier": 1.4,
+          "trauma_track": false
+        },
+        "legs": {
+          "name_zh": "步足",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -3
+              }
+            ]
+          }
+        },
+        "venom_sac": {
+          "name_zh": "毒囊",
+          "attack_modifier": -4,
+          "damage_multiplier": 1,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "tagged_attack_modifier_die",
+                "tag": "requires_venom",
+                "value": "-1d6"
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "disable_tagged_actions",
+                "tag": "requires_venom"
+              }
+            ]
+          }
+        },
+        "carapace": {
+          "name_zh": "甲壳",
+          "attack_modifier": 0,
+          "damage_multiplier": 0.6,
+          "trauma_track": false
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "钳咬猛击",
+          "cost": {},
+          "damage": "2d8+3",
+          "narrative_forms": [
+            "前钳猛击",
+            "咬噬",
+            "甲壳撞击"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "venom_spit": {
+          "name_zh": "喷吐剧毒",
+          "cost": {
+            "fear": 1
+          },
+          "tags": [
+            "requires_venom"
+          ],
+          "check_modifier_die": "1d6",
+          "damage": "1d8+2",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "poisoned",
+              "stacks": 2
+            }
+          ]
+        },
+        "venomous_maul": {
+          "name_zh": "毒钳绞杀",
+          "cost": {
+            "fear": 1
+          },
+          "tags": [
+            "requires_venom"
+          ],
+          "damage": "2d8+3",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "poisoned",
+              "stacks": 2
+            },
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 1
+            }
+          ]
+        }
+      },
+      "actions": {},
+      "traits": {
+        "poison_immunity": {
+          "name_zh": "毒素免疫",
+          "immunities": [
+            "poisoned"
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      },
+      "difficulty": 13
+    },
+    "water_hag": {
+      "id": "water_hag",
+      "name_zh": "水鬼婆",
+      "kind": "monster",
+      "monster_type": "necrophage",
+      "stats": {
+        "defense": 13,
+        "base_attack_modifier": 0,
+        "hp": {
+          "current": 6,
+          "max": 6
+        },
+        "damage_thresholds": {
+          "heavy": 12,
+          "severe": 20
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -6,
+          "damage_multiplier": 3,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "arms": {
+          "name_zh": "镰爪手臂",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -3
+              }
+            ]
+          }
+        },
+        "legs": {
+          "name_zh": "双腿",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -3
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "镰爪撕裂",
+          "cost": {},
+          "damage": "2d8+2",
+          "narrative_forms": [
+            "镰爪",
+            "撕咬",
+            "重拍"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "mud_ball": {
+          "name_zh": "污泥投掷",
+          "cost": {
+            "fear": 1
+          },
+          "damage": "1d6+1",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "blinded",
+              "stacks": 2
+            }
+          ]
+        },
+        "mud_ambush": {
+          "name_zh": "泥沼潜袭",
+          "cost": {
+            "fear": 1
+          },
+          "check_modifier_die": "1d6",
+          "damage": "2d8+3",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 1
+            }
+          ]
+        }
+      },
+      "actions": {},
+      "traits": {
+        "igni_weakness": {
+          "name_zh": "惧火湿躯",
+          "effects": [
+            {
+              "type": "increase_incoming_damage_rank_if",
+              "condition": {
+                "damage_type": "fire"
+              },
+              "steps": 1
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      },
+      "difficulty": 7
+    },
+    "wild_dog": {
+      "id": "wild_dog",
+      "name_zh": "野犬",
+      "kind": "monster",
+      "monster_type": "beast",
+      "difficulty": 1,
+      "stats": {
+        "defense": 11,
+        "base_attack_modifier": 0,
+        "hp": {
+          "current": 2,
+          "max": 2
+        },
+        "damage_thresholds": {
+          "heavy": 6,
+          "severe": 11
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -5,
+          "damage_multiplier": 2.5,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "legs": {
+          "name_zh": "四肢",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -2
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "扑咬",
+          "cost": {},
+          "damage": "1d6+1",
+          "narrative_forms": [
+            "撕咬",
+            "扑撞",
+            "扯腿"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        }
+      },
+      "actions": {},
+      "traits": {
+        "pack_hunter": {
+          "name_zh": "群猎",
+          "effects": [
+            {
+              "type": "conditional_check_modifier",
+              "condition": "another_allied_pack_hunter_present",
+              "stat": "attack_check",
+              "value": 1
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      }
+    },
+    "wolf": {
+      "id": "wolf",
+      "name_zh": "狼",
+      "kind": "monster",
+      "monster_type": "beast",
+      "difficulty": 2,
+      "stats": {
+        "defense": 12,
+        "base_attack_modifier": 0,
+        "hp": {
+          "current": 3,
+          "max": 3
+        },
+        "damage_thresholds": {
+          "heavy": 7,
+          "severe": 12
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -5,
+          "damage_multiplier": 2.5,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "legs": {
+          "name_zh": "四肢",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -2
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "狼吻撕咬",
+          "cost": {},
+          "damage": "1d8+1",
+          "narrative_forms": [
+            "扑咬",
+            "撕扯",
+            "咬腿"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "hamstring": {
+          "name_zh": "撕咬腿腱",
+          "cost": {
+            "fear": 1
+          },
+          "damage": "1d8+1",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 1
+            }
+          ]
+        }
+      },
+      "actions": {},
+      "traits": {
+        "pack_hunter": {
+          "name_zh": "狼群包围",
+          "effects": [
+            {
+              "type": "conditional_check_modifier_die",
+              "condition": "another_allied_pack_hunter_present",
+              "value": "1d6",
+              "max_from_trait_per_check": "1d6"
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      }
+    },
+    "warg": {
+      "id": "warg",
+      "name_zh": "座狼",
+      "kind": "monster",
+      "monster_type": "beast",
+      "difficulty": 4,
+      "stats": {
+        "defense": 13,
+        "base_attack_modifier": 1,
+        "hp": {
+          "current": 5,
+          "max": 5
+        },
+        "damage_thresholds": {
+          "heavy": 10,
+          "severe": 17
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -5,
+          "damage_multiplier": 2.5,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "legs": {
+          "name_zh": "四肢",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -3
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "巨颚撕咬",
+          "cost": {},
+          "damage": "2d6+2",
+          "narrative_forms": [
+            "扑咬",
+            "撕裂",
+            "肩撞"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "pack_leader_lunge": {
+          "name_zh": "头狼扑杀",
+          "cost": {
+            "fear": 1
+          },
+          "check_modifier_die": "1d6",
+          "damage": "2d8+2",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 2
+            }
+          ]
+        }
+      },
+      "actions": {},
+      "traits": {
+        "pack_leader": {
+          "name_zh": "狼群首领",
+          "effects": [
+            {
+              "type": "allied_trait_modifier",
+              "target_trait": "pack_hunter",
+              "stat": "attack_check",
+              "value": 1
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      }
+    },
+    "nekker": {
+      "id": "nekker",
+      "name_zh": "孽鬼",
+      "kind": "monster",
+      "monster_type": "ogroid",
+      "difficulty": 2,
+      "stats": {
+        "defense": 12,
+        "base_attack_modifier": 0,
+        "hp": {
+          "current": 3,
+          "max": 3
+        },
+        "damage_thresholds": {
+          "heavy": 7,
+          "severe": 12
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -5,
+          "damage_multiplier": 2.5,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "arms": {
+          "name_zh": "双臂",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -2
+              }
+            ]
+          }
+        },
+        "legs": {
+          "name_zh": "双腿",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -2
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "乱爪撕咬",
+          "cost": {},
+          "damage": "1d8+1",
+          "narrative_forms": [
+            "爪击",
+            "撕咬",
+            "扑击"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "burrow_ambush": {
+          "name_zh": "钻地偷袭",
+          "cost": {
+            "fear": 1
+          },
+          "check_modifier_die": "1d6",
+          "damage": "1d8+2",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 1
+            }
+          ]
+        }
+      },
+      "actions": {},
+      "traits": {
+        "swarm_tactics": {
+          "name_zh": "群体围攻",
+          "effects": [
+            {
+              "type": "conditional_check_modifier",
+              "condition": "two_or_more_allied_nekkers_present",
+              "stat": "attack_check",
+              "value": 2
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      }
+    },
+    "nekker_warrior": {
+      "id": "nekker_warrior",
+      "name_zh": "孽鬼战士",
+      "kind": "monster",
+      "monster_type": "ogroid",
+      "difficulty": 5,
+      "stats": {
+        "defense": 14,
+        "base_attack_modifier": 1,
+        "hp": {
+          "current": 6,
+          "max": 6
+        },
+        "damage_thresholds": {
+          "heavy": 11,
+          "severe": 19
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -5,
+          "damage_multiplier": 2.5,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "arms": {
+          "name_zh": "强壮双臂",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -3
+              }
+            ]
+          }
+        },
+        "legs": {
+          "name_zh": "双腿",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -3
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "重爪",
+          "cost": {},
+          "damage": "2d6+2",
+          "narrative_forms": [
+            "重爪",
+            "撕咬",
+            "扑撞"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "tunnel_charge": {
+          "name_zh": "地道突袭",
+          "cost": {
+            "fear": 1
+          },
+          "check_modifier_die": "1d6",
+          "damage": "2d8+2",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "unbalanced",
+              "stacks": 2
+            }
+          ]
+        }
+      },
+      "actions": {},
+      "traits": {
+        "nekker_leader": {
+          "name_zh": "孽鬼头目",
+          "effects": [
+            {
+              "type": "allied_monster_modifier",
+              "target_monster_id": "nekker",
+              "stat": "attack_check",
+              "value": 1
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      }
+    },
+    "ghoul": {
+      "id": "ghoul",
+      "name_zh": "食尸鬼",
+      "kind": "monster",
+      "monster_type": "necrophage",
+      "difficulty": 4,
+      "stats": {
+        "defense": 13,
+        "base_attack_modifier": 0,
+        "hp": {
+          "current": 5,
+          "max": 5
+        },
+        "damage_thresholds": {
+          "heavy": 10,
+          "severe": 17
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头部",
+          "attack_modifier": -5,
+          "damage_multiplier": 2.5,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "torso": {
+          "name_zh": "躯干",
+          "attack_modifier": 0,
+          "damage_multiplier": 1,
+          "trauma_track": false
+        },
+        "claws": {
+          "name_zh": "利爪",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -3
+              }
+            ]
+          }
+        },
+        "legs": {
+          "name_zh": "双腿",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -3
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "食腐爪咬",
+          "cost": {},
+          "damage": "2d6+1",
+          "narrative_forms": [
+            "爪击",
+            "扑咬",
+            "撕扯"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "frenzied_bite": {
+          "name_zh": "饥狂噬咬",
+          "cost": {
+            "fear": 1
+          },
+          "damage": "2d8+1",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "bleeding",
+              "stacks": 1
+            }
+          ]
+        }
+      },
+      "actions": {},
+      "traits": {
+        "corpse_fed_frenzy": {
+          "name_zh": "食腐狂性",
+          "effects": [
+            {
+              "type": "conditional_modifier",
+              "condition": "hp_at_or_below_half",
+              "stat": "attack_check",
+              "value": 1
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      }
+    },
+    "endrega_worker": {
+      "id": "endrega_worker",
+      "name_zh": "安德莱格工虫",
+      "kind": "monster",
+      "monster_type": "insectoid",
+      "difficulty": 5,
+      "stats": {
+        "defense": 13,
+        "base_attack_modifier": 0,
+        "hp": {
+          "current": 5,
+          "max": 5
+        },
+        "damage_thresholds": {
+          "heavy": 11,
+          "severe": 18
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头胸部",
+          "attack_modifier": -4,
+          "damage_multiplier": 1.7,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "carapace": {
+          "name_zh": "甲壳",
+          "attack_modifier": 0,
+          "damage_multiplier": 0.8,
+          "trauma_track": false
+        },
+        "abdomen": {
+          "name_zh": "腹部",
+          "attack_modifier": -2,
+          "damage_multiplier": 1.3,
+          "trauma_track": false
+        },
+        "legs": {
+          "name_zh": "步足",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -2
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "毒钳抓击",
+          "cost": {},
+          "damage": "1d8+2",
+          "narrative_forms": [
+            "钳击",
+            "肢刺",
+            "咬噬"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true,
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "poisoned",
+              "stacks": 1
+            }
+          ]
+        },
+        "acid_spit": {
+          "name_zh": "酸液喷吐",
+          "cost": {
+            "fear": 1
+          },
+          "damage": "1d8+1",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "poisoned",
+              "stacks": 2
+            }
+          ]
+        }
+      },
+      "actions": {},
+      "traits": {
+        "poison_immunity": {
+          "name_zh": "毒素免疫",
+          "immunities": [
+            "poisoned"
+          ]
+        },
+        "colony_fighter": {
+          "name_zh": "虫群夹击",
+          "effects": [
+            {
+              "type": "conditional_check_modifier",
+              "condition": "another_allied_insectoid_present",
+              "stat": "attack_check",
+              "value": 1
+            }
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      }
+    },
+    "endrega_drone": {
+      "id": "endrega_drone",
+      "name_zh": "安德莱格雄虫",
+      "kind": "monster",
+      "monster_type": "insectoid",
+      "difficulty": 6,
+      "stats": {
+        "defense": 13,
+        "base_attack_modifier": 1,
+        "hp": {
+          "current": 6,
+          "max": 6
+        },
+        "damage_thresholds": {
+          "heavy": 12,
+          "severe": 20
+        },
+        "armor": null
+      },
+      "state": {
+        "statuses": []
+      },
+      "parts": {
+        "head": {
+          "name_zh": "头胸部",
+          "attack_modifier": -4,
+          "damage_multiplier": 1.7,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "attack_check",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "death"
+              }
+            ]
+          }
+        },
+        "carapace": {
+          "name_zh": "甲壳",
+          "attack_modifier": 0,
+          "damage_multiplier": 0.8,
+          "trauma_track": false
+        },
+        "abdomen": {
+          "name_zh": "锥形腹部",
+          "attack_modifier": -2,
+          "damage_multiplier": 1.3,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "tagged_attack_modifier_die",
+                "tag": "requires_quill_abdomen",
+                "value": "-1d6"
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "disable_tagged_actions",
+                "tag": "requires_quill_abdomen"
+              }
+            ]
+          }
+        },
+        "legs": {
+          "name_zh": "步足",
+          "grouped_part": true,
+          "attack_modifier": -3,
+          "damage_multiplier": 0.8,
+          "trauma_track": true,
+          "effects": {
+            "light": [],
+            "heavy": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -1
+              }
+            ],
+            "destroyed": [
+              {
+                "type": "modifier",
+                "stat": "defense",
+                "value": -3
+              }
+            ]
+          }
+        }
+      },
+      "attacks": {
+        "normal": {
+          "name_zh": "钳足猛击",
+          "cost": {},
+          "damage": "2d6+2",
+          "narrative_forms": [
+            "钳击",
+            "咬噬",
+            "肢刺"
+          ],
+          "narrative_forms_have_distinct_mechanics": false,
+          "allow_other_body_appropriate_forms": true
+        },
+        "poison_quill_volley": {
+          "name_zh": "毒刺齐射",
+          "cost": {
+            "fear": 1
+          },
+          "tags": [
+            "requires_quill_abdomen"
+          ],
+          "check_modifier_die": "1d6",
+          "damage": "1d8+2",
+          "on_hit": [
+            {
+              "type": "apply_status",
+              "status": "poisoned",
+              "stacks": 2
+            }
+          ]
+        }
+      },
+      "actions": {},
+      "traits": {
+        "poison_immunity": {
+          "name_zh": "毒素免疫",
+          "immunities": [
+            "poisoned"
+          ]
+        },
+        "bleeding_resistance": {
+          "name_zh": "虫甲体质",
+          "immunities": [
+            "bleeding"
+          ]
+        }
+      },
+      "parts_initial_trauma": {
+        "all_trauma_track_parts": 0
+      }
+    }
+  },
+  "meta": {
+    "schema_version": "1.0.0",
+    "source": "combat参考/combat_data.json",
+    "locale": "zh-CN",
+    "purpose": "单场战斗的规则运行数据"
+  }
+}
