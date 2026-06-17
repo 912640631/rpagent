@@ -126,3 +126,53 @@ test('monster move spends shared fear and an unaffordable Geralt action does not
     assert.equal(other.status().resources.hope, 0);
   } finally { rmSync(otherDirectory, { recursive: true, force: true }); }
 });
+
+test('reset rejects a command carrying a revision from the previous adventure', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'adventure-reset-test-'));
+  const session = createAdventureSession(join(directory, 'adventure.json'));
+  try {
+    const previousRevision = session.status().revision;
+    session.narrativeRoll(previousRevision, { difficulty: 10 }, () => 6);
+    const restarted = session.reset();
+    assert(restarted.revision > previousRevision);
+    assert.throws(() => session.startBattle(previousRevision, { monsterId: 'wolf', seed: 42 }),
+      (error: { code: string }) => error.code === 'STALE_REVISION');
+    assert.equal(session.status().battle, null);
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('narrative actions preserve the completed battle resource snapshot', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'adventure-snapshot-test-'));
+  const session = createAdventureSession(join(directory, 'adventure.json'));
+  try {
+    const started = session.startBattle(0, { monsterId: 'wolf', seed: 42, initial: { monster: { hp: 1 } } });
+    assert(started.battle);
+    const finished = session.act(started.battle.battleId, 0,
+      { type: 'action', id: 'sword:normal', useHopeAdvantage: true });
+    assert.equal(finished.battle?.view.outcome, 'geralt_won');
+    const finalBattleResources = { hope: finished.battle!.view.hope, fear: finished.battle!.view.fear };
+    const values = [1, 12];
+    const later = session.narrativeRoll(finished.revision, { difficulty: 30 }, () => values.shift()!);
+    assert.notDeepEqual(later.resources, finalBattleResources);
+    assert.deepEqual({ hope: later.battle?.view.hope, fear: later.battle?.view.fear }, finalBattleResources);
+    const battleRecord = later.history.filter(event => event.type === 'battle_action').at(-1)!;
+    assert.deepEqual((battleRecord.result as { resources: unknown }).resources, finalBattleResources);
+    const spent = session.spendFear(later.revision);
+    assert.equal(spent.resources.fear, 0);
+    assert.deepEqual({ hope: spent.battle?.view.hope, fear: spent.battle?.view.fear }, finalBattleResources);
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('adventure battle rejects nonboolean hope spending without changing resources', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'adventure-command-test-'));
+  const session = createAdventureSession(join(directory, 'adventure.json'));
+  try {
+    const started = session.startBattle(0, { monsterId: 'wolf', seed: 42 });
+    assert(started.battle);
+    const command = { type: 'action', id: 'sword:normal', useHopeAdvantage: 'false' };
+    assert.throws(() => session.act(started.battle!.battleId, 0, command as never),
+      (error: { code: string }) => error.code === 'INVALID_COMMAND');
+    assert.equal(session.status().battle?.revision, 0);
+    assert.deepEqual(session.status().resources, { hope: 2, fear: 0 });
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});

@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dataRevision } from './data.js';
+import { validCommand } from './command.js';
 import { advanceBattle, createBattle } from './engine.js';
 import { makeSessionView, type SessionView } from './session-view.js';
 import type { BattleConfig, BattleState, Command, Event } from './types.js';
@@ -53,22 +54,6 @@ function failure(code: SessionErrorCode, message: string, record?: StoredSession
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
-}
-
-function validCommand(value: unknown): value is Command {
-  if (!isRecord(value)) return false;
-  if (value.type === 'decision') {
-    return Object.keys(value).every(key => ['type', 'choice'].includes(key)) && typeof value.choice === 'string';
-  }
-  if (value.type !== 'action' || typeof value.id !== 'string') return false;
-  const allowed = ['type', 'id', 'part', 'choice', 'advantage', 'useHopeAdvantage', 'empowerHit', 'empowerDamage'];
-  return Object.keys(value).every(key => allowed.includes(key)) &&
-    (value.part === undefined || typeof value.part === 'string') &&
-    (value.choice === undefined || typeof value.choice === 'string') &&
-    (value.advantage === undefined || ['none', 'advantage', 'disadvantage'].includes(value.advantage as string)) &&
-    (value.useHopeAdvantage === undefined || typeof value.useHopeAdvantage === 'boolean') &&
-    (value.empowerHit === undefined || typeof value.empowerHit === 'boolean') &&
-    (value.empowerDamage === undefined || typeof value.empowerDamage === 'boolean');
 }
 
 function packageRoot(): string {

@@ -16,4 +16,5 @@
 ## Comments
 
 - 2026-09-29：实现 `createAdventureSession` 与 `adventure-*` CLI，使用单文件账本和版本校验交接叙事与单怪战斗。CombatEngine 已按工单规则结算希望、绝望及购买加成。`npm run build` 与 `npm test` 通过。
+- 2026-09-29：审查后修复新局版本号重用、战后资源快照被叙事改写、无效战斗命令扣费三处缺陷；新增公开会话层回归测试。
 

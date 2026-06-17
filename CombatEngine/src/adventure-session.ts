@@ -2,6 +2,7 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { initialState, resolveFearSpend, resolveRoll, type NarrativeState } from '@ai-gm/narrative-dice';
+import { validCommand } from './command.js';
 import { dataRevision } from './data.js';
 import { advanceBattle, createBattle } from './engine.js';
 import { makeSessionView } from './session-view.js';
@@ -27,11 +28,11 @@ export function defaultAdventurePath(): string {
   return resolve('NarrativeDice/.local/adventure.json');
 }
 
-function fresh(): AdventureState {
-  return { ...initialState(), revision: 0, owner: 'narrative', battle: null };
+function fresh(revision = 0): AdventureState {
+  return { ...initialState(), revision, owner: 'narrative', battle: null };
 }
 
-function read(path: string): AdventureState {
+function read(path: string, checkDataRevision = true): AdventureState {
   if (!existsSync(path)) return fresh();
   let state: AdventureState;
   try { state = JSON.parse(readFileSync(path, 'utf8')) as AdventureState; }
@@ -42,12 +43,12 @@ function read(path: string): AdventureState {
       !Array.isArray(state.history) || !['narrative', 'combat'].includes(state.owner) ||
       (state.battle !== null && (!state.battle || typeof state.battle.battleId !== 'string' ||
         !Number.isSafeInteger(state.battle.revision) || !state.battle.state ||
-        state.battle.state.hope !== state.hope || state.battle.state.fear !== state.fear)) ||
+        (state.owner === 'combat' && (state.battle.state.hope !== state.hope || state.battle.state.fear !== state.fear)))) ||
       (state.owner === 'combat' && (!state.battle || state.battle.state.outcome)) ||
       (state.owner === 'narrative' && state.battle !== null && !state.battle.state.outcome)) {
     throw new AdventureError('CORRUPT_SESSION', 'Adventure state or resource ledger is invalid');
   }
-  if (state.battle && state.battle.state.dataRevision !== dataRevision) {
+  if (checkDataRevision && state.battle && state.battle.state.dataRevision !== dataRevision) {
     throw new AdventureError('DATA_MISMATCH', 'Stored battle uses a different combat data revision');
   }
   return state;
@@ -115,7 +116,9 @@ export function createAdventureSession(storagePath = defaultAdventurePath()) {
     status() { return view(read(path)); },
     reset() {
       return locked(path, () => {
-        const state = fresh();
+        const revision = read(path, false).revision + 1;
+        if (!Number.isSafeInteger(revision)) throw new AdventureError('INVALID_REVISION', 'Adventure revision exhausted');
+        const state = fresh(revision);
         write(path, state);
         return view(state);
       });
@@ -127,10 +130,6 @@ export function createAdventureSession(storagePath = defaultAdventurePath()) {
         checkOwner(state, 'narrative');
         const { state: rolled, result } = resolveRoll(state, input, rollDie);
         const next = { ...state, ...rolled, revision: state.revision + 1 };
-        if (next.battle) {
-          next.battle.state.hope = next.hope;
-          next.battle.state.fear = next.fear;
-        }
         write(path, next);
         return { ...view(next), result };
       });
@@ -142,7 +141,6 @@ export function createAdventureSession(storagePath = defaultAdventurePath()) {
         checkOwner(state, 'narrative');
         const { state: spent, result } = resolveFearSpend(state);
         const next = { ...state, ...spent, revision: state.revision + 1 };
-        if (next.battle) next.battle.state.fear = next.fear;
         write(path, next);
         return { ...view(next), result };
       });
@@ -180,6 +178,7 @@ export function createAdventureSession(storagePath = defaultAdventurePath()) {
         if (!Number.isSafeInteger(expectedRevision) || current.revision !== expectedRevision) {
           throw new AdventureError('STALE_REVISION', 'Battle revision has changed');
         }
+        if (!validCommand(command)) throw new AdventureError('INVALID_COMMAND', 'Command shape is invalid');
         let battle: BattleState;
         try { battle = advanceBattle(current.state, command); }
         catch (error) { throw new AdventureError('ILLEGAL_COMMAND', (error as Error).message); }

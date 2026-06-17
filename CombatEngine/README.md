@@ -33,7 +33,7 @@ state = adventure.act(battle.battleId, battle.revision, {
 console.log(state.resources, state.battle.view, state.events);
 ```
 
-`narrativeRoll`、`spendFear` 和 `startBattle` 使用冒险 `revision`；`act` 使用战斗 `revision`。旧版本提交会被拒绝，历史与资源随行动原子保存。杰洛特的战斗判定可花 2 希望获得 +3，环境优势或劣势另行结算。希望和绝望上限为 6 和 12，初始为 2 和 0。怪物招式和强化从同一绝望池扣费。
+`narrativeRoll`、`spendFear` 和 `startBattle` 使用冒险 `revision`；`act` 使用战斗 `revision`。旧版本提交会被拒绝，`reset` 后版本号也继续递增，历史与资源随行动原子保存。已结束战斗的视图保留终局资源快照，`resources` 则显示当前冒险资源。杰洛特的战斗判定可花 2 希望获得 +3，环境优势或劣势另行结算。希望和绝望上限为 6 和 12，初始为 2 和 0。怪物招式和强化从同一绝望池扣费。
 
 命令行分别使用 `adventure-status`、`adventure-reset`、`adventure-roll`、`adventure-spend-fear`、`adventure-start-battle` 和 `adventure-act`。修改命令从标准输入接收 JSON，例如：
 
