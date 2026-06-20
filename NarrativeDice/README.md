@@ -4,7 +4,7 @@ AI GM 可直接使用 [最短使用说明](AI-QUICKSTART.md)。
 
 这是供 AI GM 调用的独立 Node.js 工具。AI 决定何时判定、难度、修正、杰洛特是否有资格使用希望优势，以及如何叙述结果；工具只掷骰并管理希望、绝望。无需运行 CombatEngine。
 
-同一局需要衔接 CombatEngine 时，改用 [冒险会话接口](../CombatEngine/README.md#同一局的叙事与战斗) 调用叙事判定和战斗；独立 CLI 的状态文件不会自动与战斗同步。
+同一局需要衔接 CombatEngine 时，使用仓库根目录 `cli.js` 和 [完整 AI 提示词](../AI-QUICKSTART.md)，让叙事与战斗共用账本；独立 CLI 的状态文件不会自动与战斗同步，不要混写同一存档。
 
 ## 命令行
 

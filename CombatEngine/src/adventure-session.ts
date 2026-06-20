@@ -8,16 +8,20 @@ import { advanceBattle, createBattle } from './engine.js';
 import { makeSessionView } from './session-view.js';
 import type { BattleConfig, BattleState, Command } from './types.js';
 
-interface StoredBattle {
+export interface StoredBattle {
   battleId: string;
   revision: number;
   state: BattleState;
+  metadata?: Record<string, unknown>;
+  initialState?: BattleState;
+  childSessionId?: string;
 }
 
 interface AdventureState extends NarrativeState {
   revision: number;
   owner: 'narrative' | 'combat';
   battle: StoredBattle | null;
+  battleArchive?: StoredBattle[];
 }
 
 export class AdventureError extends Error {
@@ -47,6 +51,11 @@ function read(path: string, checkDataRevision = true): AdventureState {
       (state.owner === 'combat' && (!state.battle || state.battle.state.outcome)) ||
       (state.owner === 'narrative' && state.battle !== null && !state.battle.state.outcome)) {
     throw new AdventureError('CORRUPT_SESSION', 'Adventure state or resource ledger is invalid');
+  }
+  if (state.battleArchive !== undefined && (!Array.isArray(state.battleArchive) ||
+      state.battleArchive.some(record => !record || typeof record.battleId !== 'string' ||
+        !Number.isSafeInteger(record.revision) || record.revision < 0 || !record.state?.outcome))) {
+    throw new AdventureError('CORRUPT_SESSION', 'Battle archive is invalid');
   }
   if (checkDataRevision && state.battle && state.battle.state.dataRevision !== dataRevision) {
     throw new AdventureError('DATA_MISMATCH', 'Stored battle uses a different combat data revision');
@@ -114,6 +123,38 @@ export function createAdventureSession(storagePath = defaultAdventurePath()) {
   const path = resolve(storagePath);
   return {
     status() { return view(read(path)); },
+    /** Read-only engine snapshot, including completed battles from earlier handoffs. */
+    battleRecord(battleId?: string): StoredBattle {
+      const state = read(path);
+      const record = battleId === undefined || state.battle?.battleId === battleId
+        ? state.battle : state.battleArchive?.find(entry => entry.battleId === battleId);
+      if (!record) throw new AdventureError('BATTLE_NOT_FOUND', 'Battle does not exist');
+      if (record.state.dataRevision !== dataRevision) {
+        throw new AdventureError('DATA_MISMATCH', 'Stored battle uses a different combat data revision');
+      }
+      return structuredClone(record);
+    },
+    /** Bind once; retries with the same child are idempotent and do not advance combat. */
+    bindBattleChild(battleId: string, childSessionId: string): StoredBattle {
+      return locked(path, () => {
+        const state = read(path);
+        const record = state.battle?.battleId === battleId ? state.battle
+          : state.battleArchive?.find(entry => entry.battleId === battleId);
+        if (!record) throw new AdventureError('BATTLE_NOT_FOUND', 'Battle does not exist');
+        if (typeof childSessionId !== 'string' || !childSessionId.trim()) {
+          throw new AdventureError('INVALID_CHILD', 'Child session ID must be nonempty');
+        }
+        if (record.childSessionId && record.childSessionId !== childSessionId) {
+          throw new AdventureError('CHILD_ALREADY_BOUND', 'Battle already has a different child session');
+        }
+        if (!record.childSessionId) {
+          record.childSessionId = childSessionId;
+          state.revision++;
+          write(path, state);
+        }
+        return structuredClone(record);
+      });
+    },
     reset() {
       return locked(path, () => {
         const revision = read(path, false).revision + 1;
@@ -145,7 +186,7 @@ export function createAdventureSession(storagePath = defaultAdventurePath()) {
         return { ...view(next), result };
       });
     },
-    startBattle(expectedRevision: number, config: BattleConfig) {
+    startBattle(expectedRevision: number, config: BattleConfig, metadata?: Record<string, unknown>) {
       return locked(path, () => {
         const state = read(path);
         checkRevision(state, expectedRevision);
@@ -162,7 +203,9 @@ export function createAdventureSession(storagePath = defaultAdventurePath()) {
         catch (error) { throw new AdventureError('INVALID_CONFIG', (error as Error).message); }
         const battleId = randomUUID();
         const next: AdventureState = { ...state, revision: state.revision + 1, owner: 'combat',
-          battle: { battleId, revision: 0, state: battle },
+          battle: { battleId, revision: 0, state: battle,
+            ...(metadata ? { metadata: structuredClone(metadata), initialState: structuredClone(battle) } : {}) },
+          battleArchive: [...(state.battleArchive ?? []), ...(state.battle ? [state.battle] : [])],
           history: [...state.history, { id: state.history.length + 1, type: 'battle_started',
             at: new Date().toISOString(), result: { battleId, monsterId: config.monsterId } }] };
         write(path, next);
@@ -186,7 +229,7 @@ export function createAdventureSession(storagePath = defaultAdventurePath()) {
         const next: AdventureState = {
           ...state, revision: state.revision + 1,
           owner: battle.outcome ? 'narrative' : 'combat', hope: battle.hope, fear: battle.fear,
-          battle: { battleId, revision: current.revision + 1, state: battle },
+          battle: { ...current, revision: current.revision + 1, state: battle },
           history: [...state.history, { id: state.history.length + 1, type: 'battle_action',
             at: new Date().toISOString(), result: { battleId, command, events,
               outcome: battle.outcome, resources: { hope: battle.hope, fear: battle.fear } } }]

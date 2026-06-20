@@ -1,6 +1,6 @@
 # 给 AI GM 的最短使用说明
 
-同一局会进入 CombatEngine 战斗时，使用 [冒险会话接口](../CombatEngine/README.md#同一局的叙事与战斗) 的 `adventure-roll`、`adventure-start-battle` 和 `adventure-act`；下面的独立 CLI 状态不会与战斗共享。
+同一局会进入 CombatEngine 战斗时，请直接复制 [统一冒险 AI 提示词](../AI-QUICKSTART.md)，使用根目录 `cli.js`。它覆盖冒险判定、开战、逐步行动和战后继续冒险；下面的独立 CLI 状态不会与战斗共享，不要混用。
 
 在仓库根目录运行以下 PowerShell 命令。每次调用只发送一个 JSON 对象；只读取返回 JSON 的 `result`。状态自动保存在 `NarrativeDice/.local/session.json`，跨调用保留。
 
