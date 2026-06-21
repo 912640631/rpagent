@@ -1,3 +1,4 @@
+import { findActionRule } from './action-rules.js';
 import { combatData, type Rule } from './data.js';
 import { getOptions } from './engine.js';
 import type { ActionOption, BattleState, Combatant, Outcome, PendingDecision, Side, TimedEffect } from './types.js';
@@ -104,15 +105,10 @@ function damageDescription(damage: unknown): string[] {
 }
 
 function optionDescription(state: BattleState, option: ActionOption): string {
-  const [group, id] = option.id.split(':');
-  let rule: Rule | undefined;
-  if (group === 'sword') rule = combatData.actors.geralt!.weapons.silver_sword.attacks[id!];
-  else if (group === 'attack') rule = combatData.actors[state.monsterId]!.attacks?.[id!];
-  else if (group === 'action') rule = combatData.actors[state.monsterId]!.actions?.[id!];
-  else if (group === 'sign') rule = combatData.global.signs[id!];
-  else if (group === 'potion') rule = combatData.global.potions[id!];
-  if (group === 'clear') return `清除${statusName(id!)}`;
-  if (!rule) return option.name;
+  const found = findActionRule(state, option.id);
+  if (!found) return option.name;
+  const { category: group, key: id, rule } = found;
+  if (group === 'clear') return `清除${statusName(id)}`;
 
   const parts = [
     ...damageDescription(rule.damage),
@@ -142,8 +138,9 @@ function decisionOption(state: BattleState, id: string): SessionDecisionOption {
   if (id === 'skip') return { id, name: '跳过', description: '不使用附加动作' };
   if (id === 'survive') return { id, name: '保命', description: '战斗结束，杰洛特失去行动能力' };
   if (id === 'gamble') return { id, name: '搏命', description: '掷希望骰与恐惧骰；失败则死亡，成功则恢复生命' };
-  if (id.startsWith('potion:')) {
-    const potion = combatData.global.potions[id.slice('potion:'.length)];
+  const found = findActionRule(state, id);
+  if (found?.category === 'potion') {
+    const potion = found.rule;
     const option: ActionOption = { id, name: potion?.name_zh ?? id, actor: 'geralt', kind: 'potion' };
     return { id, name: option.name, description: optionDescription(state, option) };
   }

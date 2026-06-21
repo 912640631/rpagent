@@ -1,3 +1,4 @@
+import { actionId, actionRules, findActionRule, requireActionRule } from './action-rules.js';
 import { combatData, dataRevision, monsterIds, type Rule, validateCombatData } from './data.js';
 import { baseDie, rollFormula } from './dice.js';
 import type {
@@ -157,21 +158,21 @@ export function getOptions(state: BattleState): ActionOption[] {
   const actor = state.combatants[side];
   if (side === 'geralt') {
     const result: ActionOption[] = [];
-    const sword = combatData.actors.geralt!.weapons.silver_sword.attacks;
+    const sword = actionRules(state, 'sword');
     for (const [id, attack] of Object.entries<Rule>(sword)) {
-      result.push({ id: `sword:${id}`, name: attack.name_zh, actor: side, kind: 'attack',
+      result.push({ id: actionId('sword', id), name: attack.name_zh, actor: side, kind: 'attack',
         targetParts: Object.keys(actorTemplate(state, 'monster').parts ?? {}) });
     }
-    for (const [id, sign] of Object.entries<Rule>(combatData.global.signs)) {
+    for (const [id, sign] of Object.entries<Rule>(actionRules(state, 'sign'))) {
       if (actor.signPoints < (sign.cost?.sign_points ?? 0)) continue;
-      const option: ActionOption = { id: `sign:${id}`, name: sign.name_zh, actor: side, kind: 'sign', cost: sign.cost };
+      const option: ActionOption = { id: actionId('sign', id), name: sign.name_zh, actor: side, kind: 'sign', cost: sign.cost };
       if (id === 'aard') option.choices = sign.on_success.choices.map((choice: Rule) => choice.id);
       result.push(option);
     }
     for (const id of actor.potions) {
-      const potion = combatData.global.potions[id];
+      const potion = actionRules(state, 'potion')[id];
       if (potion && actor.toxicity + potion.toxicity <= actor.maxToxicity) {
-        result.push({ id: `potion:${id}`, name: potion.name_zh, actor: side, kind: 'potion' });
+        result.push({ id: actionId('potion', id), name: potion.name_zh, actor: side, kind: 'potion' });
       }
     }
     if (actor.statuses.burning) result.push({ id: 'clear:burning', name: '灭火', actor: side, kind: 'clear' });
@@ -180,18 +181,18 @@ export function getOptions(state: BattleState): ActionOption[] {
   }
   const template = actorTemplate(state, side);
   const result: ActionOption[] = [];
-  for (const [id, attack] of Object.entries<Rule>(template.attacks ?? {})) {
+  for (const [id, attack] of Object.entries<Rule>(actionRules(state, 'attack'))) {
     if (actor.hp <= 0 || actionDisabled(state, side, id, attack.tags ?? [])) continue;
     if (state.fear < (attack.cost?.fear ?? 0)) continue;
-    result.push({ id: `attack:${id}`, name: attack.name_zh, actor: side, kind: 'attack', cost: attack.cost,
+    result.push({ id: actionId('attack', id), name: attack.name_zh, actor: side, kind: 'attack', cost: attack.cost,
       canEmpowerHit: !actor.statuses.hesitant && state.fear >= (attack.cost?.fear ?? 0) + combatData.global.fear.generic_empowerments.empower_hit.cost.fear,
       canEmpowerDamage: Boolean(attack.damage) && !actor.statuses.hesitant &&
         state.fear >= (attack.cost?.fear ?? 0) + combatData.global.fear.generic_empowerments.empower_damage.cost.fear });
   }
-  for (const [id, action] of Object.entries<Rule>(template.actions ?? {})) {
+  for (const [id, action] of Object.entries<Rule>(actionRules(state, 'action'))) {
     if (actor.hp <= 0 || actionDisabled(state, side, id, action.tags ?? [])) continue;
     if (state.fear < (action.cost?.fear ?? 0)) continue;
-    result.push({ id: `action:${id}`, name: action.name_zh, actor: side, kind: 'action', cost: action.cost });
+    result.push({ id: actionId('action', id), name: action.name_zh, actor: side, kind: 'action', cost: action.cost });
   }
   if (actor.statuses.burning) result.push({ id: 'clear:burning', name: '灭火', actor: side, kind: 'clear' });
   if (actor.statuses.bleeding) result.push({ id: 'clear:bleeding', name: '处理伤口', actor: side, kind: 'clear' });
@@ -580,7 +581,7 @@ class Resolver {
 
   private usePotion(id: string, bonus: boolean): void {
     const actor = this.state.combatants.geralt;
-    const potion = combatData.global.potions[id];
+    const potion = actionRules(this.state, 'potion')[id];
     if (!potion || !actor.potions.includes(id)) throw new Error(`Potion unavailable: ${id}`);
     if (actor.toxicity + potion.toxicity > actor.maxToxicity) throw new Error(`Toxicity limit exceeded: ${id}`);
     actor.potions.splice(actor.potions.indexOf(id), 1);
@@ -599,9 +600,7 @@ class Resolver {
     const targetActor = this.state.combatants[target];
     const sword = side === 'geralt';
     const retaliatesOnHit = sword && Boolean(targetActor.statuses.spined);
-    const attack = sword
-      ? combatData.actors.geralt!.weapons.silver_sword.attacks[id.split(':')[1]!]
-      : actorTemplate(this.state, side).attacks[id.split(':')[1]!];
+    const attack = requireActionRule(this.state, id, sword ? 'sword' : 'attack').rule;
     const tags: string[] = attack.tags ?? [];
     if (sword) tags.push('sword');
     const baseCost = attack.cost?.fear ?? 0;
@@ -654,8 +653,7 @@ class Resolver {
   }
 
   private resolveSign(id: string, command: ActionCommand): { initiativeAfter: Side; bonus: boolean } {
-    const signId = id.split(':')[1]!;
-    const sign = combatData.global.signs[signId];
+    const { key: signId, rule: sign } = requireActionRule(this.state, id, 'sign');
     const actor = this.state.combatants.geralt;
     actor.signPoints -= sign.cost.sign_points;
     this.emit('resource_spent', { resource: 'sign_points', amount: sign.cost.sign_points, remaining: actor.signPoints }, 'geralt');
@@ -703,8 +701,7 @@ class Resolver {
   }
 
   private resolveMonsterAction(id: string): { initiativeAfter: Side; bonus: boolean } {
-    const actionId = id.split(':')[1]!;
-    const action = actorTemplate(this.state, 'monster').actions[actionId];
+    const { rule: action } = requireActionRule(this.state, id, 'action');
     const cost = action.cost?.fear ?? 0;
     if (this.state.fear < cost) throw new Error('Insufficient fear');
     this.state.fear -= cost;
@@ -812,10 +809,10 @@ class Resolver {
     if (option.kind === 'attack') result = this.resolveAttack(side, command.id, command);
     else if (option.kind === 'sign') result = this.resolveSign(command.id, command);
     else if (option.kind === 'potion') {
-      this.usePotion(command.id.split(':')[1]!, false);
+      this.usePotion(requireActionRule(this.state, command.id, 'potion').key, false);
       result = { initiativeAfter: 'monster', bonus: false };
     } else if (option.kind === 'clear') {
-      const status = command.id.split(':')[1]!;
+      const status = requireActionRule(this.state, command.id, 'clear').key;
       delete this.state.combatants[side].statuses[status];
       this.emit('status_cleared', { status }, side);
       result = { initiativeAfter: other(side), bonus: false };
@@ -838,7 +835,8 @@ class Resolver {
     this.state.pending = null;
     this.emit('decision_made', { kind: pending.kind, choice: command.choice }, pending.kind === 'dying' ? 'geralt' : pending.actingSide);
     if (pending.kind === 'bonus_action') {
-      if (command.choice.startsWith('potion:')) this.usePotion(command.choice.split(':')[1]!, true);
+      const bonus = findActionRule(this.state, command.choice);
+      if (bonus?.category === 'potion') this.usePotion(bonus.key, true);
       this.finishAction(pending.actingSide, pending.initiativeAfter);
       return;
     }

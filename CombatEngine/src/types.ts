@@ -107,23 +107,7 @@ export interface ActionOption {
   canEmpowerDamage?: boolean;
 }
 
-export interface ActionCommand {
-  type: 'action';
-  id: string;
-  part?: string;
-  choice?: string;
-  advantage?: Advantage;
-  useHopeAdvantage?: boolean;
-  empowerHit?: boolean;
-  empowerDamage?: boolean;
-}
-
-export interface DecisionCommand {
-  type: 'decision';
-  choice: string;
-}
-
-export type Command = ActionCommand | DecisionCommand;
+export type { ActionCommand, DecisionCommand, Command } from './command.js';
 
 export interface BattleView {
   state: BattleState;

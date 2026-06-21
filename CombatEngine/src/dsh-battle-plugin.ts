@@ -1,3 +1,4 @@
+import { commandSchema } from './command.js';
 import { resolve, dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -133,11 +134,7 @@ export function apply(ctx: Context, config: Config = {}): void {
   register('rpg_attach_battle', 'Retry child creation for an already saved handoff. An existing child is never duplicated.', { battleId: string }, ['battleId'], (args, exec) => spawn(args.battleId, exec));
   register('rpg_battle_status', 'Read persisted battle, available commands, revision and whose decision is next.', { battleId: string }, ['battleId'], async (args, exec) => { caller(exec); return handoff.status(args.battleId); });
   register('rpg_battle_act', 'Apply exactly one legal CombatEngine command at expected battle revision.',
-    { battleId: string, expectedRevision: integer, command: { type: 'object', additionalProperties: false,
-      description: 'Use view.options for action ids/parts/choices; view.pending.options for decision choice. Action: {type:action,id,...}. Decision: {type:decision,choice}.',
-      properties: { type: { type: 'string', enum: ['action', 'decision'] }, id: string, part: string, choice: string,
-        advantage: { type: 'string', enum: ['none', 'advantage', 'disadvantage'] }, useHopeAdvantage: { type: 'boolean' },
-        empowerHit: { type: 'boolean' }, empowerDamage: { type: 'boolean' } }, required: ['type'] } }, ['battleId', 'expectedRevision', 'command'], async (args, exec) => {
+    { battleId: string, expectedRevision: integer, command: commandSchema }, ['battleId', 'expectedRevision', 'command'], async (args, exec) => {
       child(args, exec);
       if (parentWaits.has(exec.agent!)) throw new Error('Waiting for GM decision');
       return handoff.act(args.battleId, args.expectedRevision, args.command as Command);

@@ -1,0 +1,482 @@
+[
+  {
+    "id": "manticore_test",
+    "seed": 1,
+    "hash": "9f8cad00a2e914f4c8c5b070e2d3abb1470d6c215d56c185475156c4fe970eac"
+  },
+  {
+    "id": "manticore_test",
+    "seed": 7,
+    "hash": "1597d20548a09d34579f3a98388d23b12e2962e2a4a006e9ccfeff413512273e"
+  },
+  {
+    "id": "manticore_test",
+    "seed": 42,
+    "hash": "e6e1f0eb4d599bfb521563e526d2b17b861856b19bad3b8211c5048f45c34928"
+  },
+  {
+    "id": "manticore_test",
+    "seed": 12345,
+    "hash": "128d833c4aa3693d57bab653d2c3c3f0c4e88cfe5b4330282eea36f26156f8a8"
+  },
+  {
+    "id": "griffin",
+    "seed": 1,
+    "hash": "a0b27b54305242b90cb96a207765273c57aeb795be26b486d4cbf397c3666f4d"
+  },
+  {
+    "id": "griffin",
+    "seed": 7,
+    "hash": "682e3dce68f3a9a5db9917cf717403a19e80564853e2bb7d16ce4156141c1d19"
+  },
+  {
+    "id": "griffin",
+    "seed": 42,
+    "hash": "69a23a21e400b56e48c6a76db286587e1064891c0c574a34c0feca5eed245658"
+  },
+  {
+    "id": "griffin",
+    "seed": 12345,
+    "hash": "3a4267b476de355b2762872eac2efb789147c1f4f5d8627eba5f248fe15606d2"
+  },
+  {
+    "id": "leshen",
+    "seed": 1,
+    "hash": "407abb4e376c3cad0e9fa97d139b969585f263b500be870cc8bfbd0f20190794"
+  },
+  {
+    "id": "leshen",
+    "seed": 7,
+    "hash": "d6d1a9601a5c723e5241013cdde472327cf65be5850f0c54ac09b3a5c9e2b9b8"
+  },
+  {
+    "id": "leshen",
+    "seed": 42,
+    "hash": "1eaf94d504ec226e5f0b3d2d50d55f8fdafaab840416e8f6e1577bdf52eae1a9"
+  },
+  {
+    "id": "leshen",
+    "seed": 12345,
+    "hash": "30f9aac19a9d5005f6d0d1973b5d30f172c5be7df058e0aaa489ec7775d50724"
+  },
+  {
+    "id": "noonwraith",
+    "seed": 1,
+    "hash": "89972b31a563ece716382b6d3393a8524fefecc53685f1a8c0699266a8ecc41e"
+  },
+  {
+    "id": "noonwraith",
+    "seed": 7,
+    "hash": "91124cea85f53917fdfd97f7cd9c765cf2e9515525e048ab10ef6928b21dd0a4"
+  },
+  {
+    "id": "noonwraith",
+    "seed": 42,
+    "hash": "6614973bca19c02ccf54ca33f14aaa4a3b112c2b626be5ff49536986fad0012b"
+  },
+  {
+    "id": "noonwraith",
+    "seed": 12345,
+    "hash": "9d7db9df9c1bf78ec1416cc0777022059e07c3c454ed2591f0be553071aff39c"
+  },
+  {
+    "id": "werewolf",
+    "seed": 1,
+    "hash": "7c71751b378d08d28e3273b1461d9c4515c3061508d4c53f6971ae09413dad9f"
+  },
+  {
+    "id": "werewolf",
+    "seed": 7,
+    "hash": "d6f5a995ff8a3626ed6c88f6904c74af4c36a502bc8ff21466a8d26ee24fa0db"
+  },
+  {
+    "id": "werewolf",
+    "seed": 42,
+    "hash": "7ddd67d9cc02af142aa7eed80fe4bf5f57a2b1891dd27f0c18fc90c4060a2feb"
+  },
+  {
+    "id": "werewolf",
+    "seed": 12345,
+    "hash": "5f19e07d4a6ffbb6282eb17619f93e27699fabd20fd48b869bcf3f599eef94f9"
+  },
+  {
+    "id": "foglet",
+    "seed": 1,
+    "hash": "e38f4f8dfcf581bc63b5dbbcd902af4e4bdad75a51d934f6088fc256b738956d"
+  },
+  {
+    "id": "foglet",
+    "seed": 7,
+    "hash": "83991d7ac2ca999e4ba621a718c3a103369a59116f40eef58dec1a823b823a52"
+  },
+  {
+    "id": "foglet",
+    "seed": 42,
+    "hash": "dc67cd7517f10fd30a676220016b43e82e9b854186ee3ade8a90084818ea9b12"
+  },
+  {
+    "id": "foglet",
+    "seed": 12345,
+    "hash": "b561f6182b15783fb49cb92fa616fd1574da9da6fd42a816ff27ac1d2bf7b37b"
+  },
+  {
+    "id": "fiend",
+    "seed": 1,
+    "hash": "bf642b61d043ffaa1330b5ce90708ce3b55ca4d681ebc3efd1bf37ac27c72310"
+  },
+  {
+    "id": "fiend",
+    "seed": 7,
+    "hash": "61b0236dba1bafffd043b5454b344bd43e7609e08184571a6f90c7e89f96eddf"
+  },
+  {
+    "id": "fiend",
+    "seed": 42,
+    "hash": "f35d751164cd44d2ea4cb66cce393e79b0fda95abe2306d37b057df463d09370"
+  },
+  {
+    "id": "fiend",
+    "seed": 12345,
+    "hash": "9a184b61c66fee74c4285aca91d44ef8319fa0459e5d8494fd9914cba980d176"
+  },
+  {
+    "id": "katakan",
+    "seed": 1,
+    "hash": "c8763aaa5c250252e6b5fae2be3e409790c749049b372486a5d830e244f2ac44"
+  },
+  {
+    "id": "katakan",
+    "seed": 7,
+    "hash": "cdffd99f8e79e0e7b9d563728665643395a990260c57f84cc7c4c3c2e86cf567"
+  },
+  {
+    "id": "katakan",
+    "seed": 42,
+    "hash": "c56f737e997affa34bbfbc65f74b670b26113abd4af398ad85c9cd2109210e27"
+  },
+  {
+    "id": "katakan",
+    "seed": 12345,
+    "hash": "a3b24377c4eee58d16ad3abc89adf3d1551e8545b3cb21046a5f3e5dcde0804f"
+  },
+  {
+    "id": "bruxa",
+    "seed": 1,
+    "hash": "4e24016894565d0e94b8a02aa18c2338a5cae6cbda52c51e51f7a58bccc8104f"
+  },
+  {
+    "id": "bruxa",
+    "seed": 7,
+    "hash": "6c6b2161231d227e12d3692b11ded527ae0e20a43d86d8e657d48b79659dcd57"
+  },
+  {
+    "id": "bruxa",
+    "seed": 42,
+    "hash": "3c6831d945b29bbc0d7848437d8abec6d574d8e716d1f8de067624b1a6fdcc2f"
+  },
+  {
+    "id": "bruxa",
+    "seed": 12345,
+    "hash": "420ec6699e6a643fe59915c8bf81bb5f520a634a2839c9f29e3330c064981f10"
+  },
+  {
+    "id": "rotfiend",
+    "seed": 1,
+    "hash": "35c1826afdfdc3fdb379e499f1c2357c46a0dc4621557ce1acda0ff6c0f40995"
+  },
+  {
+    "id": "rotfiend",
+    "seed": 7,
+    "hash": "3670bed69d2a4da661447057335c1cb1abc420defbfc8a91b4f43b7b07112894"
+  },
+  {
+    "id": "rotfiend",
+    "seed": 42,
+    "hash": "7e9e91ccb11aefbbd75a33272e19525fe88d7e597ccb8cfeb1083ba176c44c29"
+  },
+  {
+    "id": "rotfiend",
+    "seed": 12345,
+    "hash": "6b7379e3a1720ab023703ef7ca1097393f10cf9f95adb1dc5a59e09d122a3f2d"
+  },
+  {
+    "id": "drowner",
+    "seed": 1,
+    "hash": "906f3b19a8c2fe3fd92373c170ad6fb4ef7fb8bade082fd7e350f74ce1219024"
+  },
+  {
+    "id": "drowner",
+    "seed": 7,
+    "hash": "178d95a54bd7f8edcff560834def9d2cc1b6a31b39fb1bb29844372aa25b44dd"
+  },
+  {
+    "id": "drowner",
+    "seed": 42,
+    "hash": "8622a4ef15086654b08772682925a090a3a653618cd5f132f276e4a3080bec52"
+  },
+  {
+    "id": "drowner",
+    "seed": 12345,
+    "hash": "ba1b6ab3559934ed865c03244ab25ab44f330382b53e7e3885e2ffd17a61bcc9"
+  },
+  {
+    "id": "cockatrice",
+    "seed": 1,
+    "hash": "1319c4b4f6bd921d4e1b95a6314c39f5405364b0d164ca0acd9bd3e6297f526d"
+  },
+  {
+    "id": "cockatrice",
+    "seed": 7,
+    "hash": "d4629cc56a71080293816a52a9e29a7902fc36ecceb52133a7b0899cb3406b4b"
+  },
+  {
+    "id": "cockatrice",
+    "seed": 42,
+    "hash": "4cda337305b19230fc55b735769e201986eb81bcc8935cea17b77b9bc8cd0089"
+  },
+  {
+    "id": "cockatrice",
+    "seed": 12345,
+    "hash": "8361370eed00b419525c6ac6c4becfd62c13b387e659a9ea60f4e75733a5bda8"
+  },
+  {
+    "id": "harpy",
+    "seed": 1,
+    "hash": "c48acd67e4842585e6ef96548045db79debaab8db549eadf0f1af98871252d7f"
+  },
+  {
+    "id": "harpy",
+    "seed": 7,
+    "hash": "0b36d78ac04c10fca80b0d24f91ed1a23a3402463f608132ba77e81d14c60932"
+  },
+  {
+    "id": "harpy",
+    "seed": 42,
+    "hash": "3571a6bdc3f01d4eb1c9aa56fdbca0069d720acfa6fd812e3bd7485b222fb36d"
+  },
+  {
+    "id": "harpy",
+    "seed": 12345,
+    "hash": "184cf0d1f606da4fef34ace509dc963c4a42d875018c943ce8530ebe277be26d"
+  },
+  {
+    "id": "alghoul",
+    "seed": 1,
+    "hash": "c2e74280eae2d3a7ceec9f35520bcfabb0bcdb7b096e05bdedb476c8fd4541a5"
+  },
+  {
+    "id": "alghoul",
+    "seed": 7,
+    "hash": "1a5e4fae944f6e5dbf37602f9177449210d19687da48149c0f6620741d65d7ab"
+  },
+  {
+    "id": "alghoul",
+    "seed": 42,
+    "hash": "ba0e397a2a7de53dad03ba1022a1a5c98a94973de09439f6402852f9bd29e3c8"
+  },
+  {
+    "id": "alghoul",
+    "seed": 12345,
+    "hash": "5f756088dcb5152fbe08d143e9b2e6c6c8dd049098a9a023790acca0086fb327"
+  },
+  {
+    "id": "venomous_arachas",
+    "seed": 1,
+    "hash": "bab49c8a070b12e015eb4406421aa543d985cb39e6ecbb94a720605f0d21807a"
+  },
+  {
+    "id": "venomous_arachas",
+    "seed": 7,
+    "hash": "03250dabbf343029b9506ddc572a0d7371267887e2f30f2fb66339c70629dc7d"
+  },
+  {
+    "id": "venomous_arachas",
+    "seed": 42,
+    "hash": "fba4a1d4afa6e0df1eda277b67201e910762aeba82b73f57155bdc7e56300406"
+  },
+  {
+    "id": "venomous_arachas",
+    "seed": 12345,
+    "hash": "c5c15ebb5c064c3269786716e826a99459578bb8788bab9662849e3013c21cb1"
+  },
+  {
+    "id": "water_hag",
+    "seed": 1,
+    "hash": "da17bcd301e74a763dc05373f3352802b5cb5dd2f2487bda7b2ff92473631f0f"
+  },
+  {
+    "id": "water_hag",
+    "seed": 7,
+    "hash": "b2e0490d735f1bc99e9267c6b64c56c79d2c13cbb6f7bbb04b4bce9022eff36b"
+  },
+  {
+    "id": "water_hag",
+    "seed": 42,
+    "hash": "c336855b1de49459a24f259b9ff0d6bc3f338a7781f0bf3a00f11c0a95cb0581"
+  },
+  {
+    "id": "water_hag",
+    "seed": 12345,
+    "hash": "d4e422d9360409ce0a7b321dff398ab386280149d4e1ad2d1fa0c5d18666ec49"
+  },
+  {
+    "id": "wild_dog",
+    "seed": 1,
+    "hash": "ba1e9605714a570235c85d1f692368726c0fb4470643da0ce81cd66a19aae7fe"
+  },
+  {
+    "id": "wild_dog",
+    "seed": 7,
+    "hash": "7dfed896dcaef426066b08467ae25d4b1d958d5bb5fbc685bd77b3713f10960c"
+  },
+  {
+    "id": "wild_dog",
+    "seed": 42,
+    "hash": "d42b4572be78ed437eadff4ec9c98d2315bdd3acd1087022fc6a0a1a0c944a97"
+  },
+  {
+    "id": "wild_dog",
+    "seed": 12345,
+    "hash": "e1e85c83801daaa21bb3c25bf73c21755def665d0b64f5707bed2534601acb5c"
+  },
+  {
+    "id": "wolf",
+    "seed": 1,
+    "hash": "0da324fce608c1493e68db38c4a516c6ace86388bdbf461d24eb5d1dc9d70740"
+  },
+  {
+    "id": "wolf",
+    "seed": 7,
+    "hash": "d517bc39d5d11bd4105b9038fc1e384a6dcd4611f0fd5e59452479c377ab3d0f"
+  },
+  {
+    "id": "wolf",
+    "seed": 42,
+    "hash": "2100afb7dc1018634f6c8c2e6472f75aa9629ef366f2525afcc47c853f76ea66"
+  },
+  {
+    "id": "wolf",
+    "seed": 12345,
+    "hash": "e13a98a887a966f498522bf0809447fec5d94eaf82d7f294a4089f813c012cbf"
+  },
+  {
+    "id": "warg",
+    "seed": 1,
+    "hash": "1dce061b78f6f8a2685438660c48a9418ada8ff4013357b45ed388334f904157"
+  },
+  {
+    "id": "warg",
+    "seed": 7,
+    "hash": "18e9179818ed7b58f91b111dc67b999f237f96101355a6411e4b85e3b5fcae67"
+  },
+  {
+    "id": "warg",
+    "seed": 42,
+    "hash": "ed61add1b75c7230c038dd3810fe8c1384e8337ab2553746752f9dd54ca83834"
+  },
+  {
+    "id": "warg",
+    "seed": 12345,
+    "hash": "e259885b97c76a838876418321037518bba35328bcfdd5af7f1eea85b7704548"
+  },
+  {
+    "id": "nekker",
+    "seed": 1,
+    "hash": "03fc7198e10b1ca965b4a043191a8911d247599977af9e0e0c36cd7d3da13228"
+  },
+  {
+    "id": "nekker",
+    "seed": 7,
+    "hash": "2f5691b9f60032a6cc421574b943f46562747f43f27ab99a8f4953f3c5e4c7f9"
+  },
+  {
+    "id": "nekker",
+    "seed": 42,
+    "hash": "527c00ce7932ef3446108e259ed0fe26e033eceede4243438526323b32be0e08"
+  },
+  {
+    "id": "nekker",
+    "seed": 12345,
+    "hash": "8fe259f5b5b48ea72261bd7779cb385d2fdee3669615d2b9b17e8e22d747df9a"
+  },
+  {
+    "id": "nekker_warrior",
+    "seed": 1,
+    "hash": "a6d544d1155c01830fcaacd5ec5c91c7b7bfb4aff93a4d6940c9ec3c05591b9d"
+  },
+  {
+    "id": "nekker_warrior",
+    "seed": 7,
+    "hash": "0c790ad972d491236906912cf75b819037e607e693dfa48e61d788aac48f46f7"
+  },
+  {
+    "id": "nekker_warrior",
+    "seed": 42,
+    "hash": "ae7489db719e7a7f2f8e09445af53df5be5cf7cc259d08c54e582799692358d7"
+  },
+  {
+    "id": "nekker_warrior",
+    "seed": 12345,
+    "hash": "f7f64e0937f480c4bc15ade8d9dfb910f82b2a6408fc3ad286d47d910c54dd3d"
+  },
+  {
+    "id": "ghoul",
+    "seed": 1,
+    "hash": "7c28ef7ac8deef11baaf2b3861d6b4473588d390062eda9fcf6f0e95c83cc627"
+  },
+  {
+    "id": "ghoul",
+    "seed": 7,
+    "hash": "0524c030231fdb1f176ce6b7f5de13afc1ae6ab817af4959af82a187ef6dfda9"
+  },
+  {
+    "id": "ghoul",
+    "seed": 42,
+    "hash": "ef59feadc608792bc3de9f7bd2d823b42c00f8603204435e366a825f536b3cc1"
+  },
+  {
+    "id": "ghoul",
+    "seed": 12345,
+    "hash": "c74d9c83bedabf671df41874b542fc6524d1c594b9d767800c9f5cda6532a310"
+  },
+  {
+    "id": "endrega_worker",
+    "seed": 1,
+    "hash": "b4f8f427bb56b8ad135ae2d119b7cf1cf372020a29000c9bd5632a54378d6b90"
+  },
+  {
+    "id": "endrega_worker",
+    "seed": 7,
+    "hash": "b0c2fd9a8f22776965475752654bd4afde26d9683ee9f5ccbc7f9692abe767fe"
+  },
+  {
+    "id": "endrega_worker",
+    "seed": 42,
+    "hash": "b51c018a24e09642b9925a16b59494af078b0ac9212b1a74845dc84c2be55771"
+  },
+  {
+    "id": "endrega_worker",
+    "seed": 12345,
+    "hash": "338575a6843851db6141dc29127cdf35ca8e24edea4d594beedacc1ed04c4028"
+  },
+  {
+    "id": "endrega_drone",
+    "seed": 1,
+    "hash": "b2010833805f8e0544368c03933ead37a0a6f16613a5eb2d8c2cad067dee6e05"
+  },
+  {
+    "id": "endrega_drone",
+    "seed": 7,
+    "hash": "c6434a657051f8ede6bc700007ee1513c00c3b7f991ed7fb37329c44492fd2b7"
+  },
+  {
+    "id": "endrega_drone",
+    "seed": 42,
+    "hash": "448bc8403cd8d434b4a6b7ef293b6bc017c280493b92eb010b8b4346d27cc643"
+  },
+  {
+    "id": "endrega_drone",
+    "seed": 12345,
+    "hash": "91205ea8bb33288340eb6773fd76f87185ce648fc9db28001290d0612ff58092"
+  }
+]

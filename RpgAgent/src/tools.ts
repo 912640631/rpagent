@@ -1,4 +1,4 @@
-import { createAdventureSession, createBattleHandoff, monsterIds, combatData, type Command,
+import { commandSchema, createAdventureSession, createBattleHandoff, monsterIds, combatData, type Command,
   type Combatant, type BattleHandoffContext } from 'witcher-combat-engine';
 import type { ToolDefinition } from './types.js';
 import { tokens } from './context.js';
@@ -21,9 +21,7 @@ export const mainTools: ToolDefinition[] = [
 export const combatTools: ToolDefinition[] = [
   { name: 'battle_status', description: '读取当前战斗权威状态、合法行动、可选部位与待决选项。', parameters: object({}) },
   { name: 'battle_act', description: '执行一个合法引擎行动或待决选项。玩家行动必须来自当前玩家输入；怪物回合由你选择。', parameters: object({
-    command: object({ type: { type: 'string', enum: ['action', 'decision'] }, id: string, part: string, choice: string,
-      advantage: { type: 'string', enum: ['none', 'advantage', 'disadvantage'] },
-      useHopeAdvantage: { type: 'boolean' }, empowerHit: { type: 'boolean' }, empowerDamage: { type: 'boolean' } }, ['type'])
+    command: commandSchema
   }, ['command']) }
 ];
 

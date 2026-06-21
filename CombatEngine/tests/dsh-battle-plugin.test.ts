@@ -1,3 +1,4 @@
+import { commandSchema } from '../src/command.js';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -267,4 +268,10 @@ test('failed child spawn preserves the handoff for attachment retry', async t =>
   assert.equal((await f.call('rpg_battle_status', { battleId: saved.battle.battleId })).childSessionId, attached.subagentId);
   assert.equal((await f.call('rpg_attach_battle', { battleId: saved.battle.battleId })).resumed, true);
   assert.equal(f.specs.length, 2);
+});
+
+ test('DSH embeds the canonical discriminated Command schema', t => {
+  const f = fixture(t);
+  const tool = f.tools.get('rpg_battle_act')!;
+  assert.deepEqual((tool.parameters as { properties: { command: unknown } }).properties.command, commandSchema);
 });
