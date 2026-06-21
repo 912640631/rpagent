@@ -1,6 +1,6 @@
 import type { BattleState } from './types.js';
 
-export function nextRandom(state: BattleState): number {
+export function nextRandom(state: Pick<BattleState, 'randomState'>): number {
   let value = state.randomState >>> 0;
   value ^= value << 13;
   value ^= value >>> 17;

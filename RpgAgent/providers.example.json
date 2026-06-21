@@ -1,0 +1,16 @@
+{
+  "providers": {
+    "compatible": {
+      "protocol": "openai-chat",
+      "baseURL": "http://127.0.0.1:8317/v1",
+      "apiKeyEnv": "RPG_API_KEY",
+      "defaultModel": "YOUR_MODEL",
+      "contextTokens": 32768
+    }
+  },
+  "main": { "provider": "compatible" },
+  "combat": { "provider": "compatible" },
+  "maxOutputTokens": 2048,
+  "recentTokens": 6000,
+  "battleResultTokens": 1500
+}

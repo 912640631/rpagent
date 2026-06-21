@@ -2,6 +2,17 @@
 
 同一个 AI 可以主持自由冒险，并在交战时调用杰洛特与单只怪物的战斗引擎。叙事与战斗共用希望、绝望和历史，战斗结束后继续冒险。
 
+已提供 [TypeScript 独立 RPG Agent](RpgAgent/README.md)：配置模型通道后，直接在命令行玩，主 Agent 负责叙事，战斗子 Agent 接管战斗，支持本地续玩和上下文压缩。
+
+```powershell
+npm install
+npm run build
+node RpgAgent/dist/src/cli.js --init
+npm run rpg
+```
+
+`--init` 从本地 `api接入.txt` 生成被 Git 忽略的 Provider 配置。已有配置时直接 `npm run rpg`。
+
 需要 Node.js 24 或更新版本。从仓库根目录运行：
 
 ```powershell
@@ -26,4 +37,4 @@ npm run build
 
 后续战斗初始角色状态通过 config.initial 提供，暂不自动恢复或延续全部角色数值。当前仅支持一对一，同行 NPC 不参与机械结算。完整规则和示例见提示词；库接口及旧 CLI 仍见 [战斗引擎说明](CombatEngine/README.md) 和 [独立叙事工具说明](NarrativeDice/README.md)。
 
-`npm test` 会先构建，再运行两个引擎及统一 CLI 的测试。
+`npm test` 会先构建，再运行两个引擎、独立 RPG Agent 及统一 CLI 的测试。

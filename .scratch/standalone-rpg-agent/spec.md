@@ -1,6 +1,6 @@
 # 独立 RPG 智能体系统
 
-设计访谈已收敛，用户已确认整体理解一致并授权使用 TypeScript 实现。
+用户已确认整体规格并授权使用 TypeScript 实现；首版已实现，见 RpgAgent/README.md。
 
 ## 已确认
 
@@ -64,3 +64,12 @@
 
 - Q8 拒绝主 Agent 维护新增结构化冒险状态；不得将先前推荐的任务、关系、物品模型当成已接受方案。
 - 当前未发现战斗外休息恢复接口。此前 Q6 推荐中的“休息或恢复操作”不应变成新增规则；首版仅沿用引擎已有的状态变化，不通过叙事自动回血。
+
+## 实现记录
+
+- 独立 npm workspace：RpgAgent；根目录 npm run rpg 启动。
+- 本地接入文件 api接入.txt 可通过 --init 生成被 Git 忽略的 Provider 配置；local 和 deepseek 共用 Chat Completions Adapter。
+- 为避免重放已提交规则步骤，应用存档保存执行前工具日志，恢复时核对权威引擎版本；规则存档与应用存档须一起保留。
+- 本地预算统一使用 cl100k_base tokenizer；兼容服务实际 tokenizer 可能不同。自动 token 压力仍以 API usage 为依据。
+- 不支持流式的 Provider 可配置 stream: false。流式缺少 usage 时改用后续非流式请求获取，不为同一已完成生成额外重放请求。
+- 真实 local / gpt-6.1-sol 已验证模型请求及 usage、叙事掷骰工具调用、战斗交接和等待玩家；DeepSeek 已配置但未实测远程通道。

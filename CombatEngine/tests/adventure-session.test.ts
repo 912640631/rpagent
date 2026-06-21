@@ -1,11 +1,36 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 import { createAdventureSession } from '../src/adventure-session.js';
 import { advanceBattle, createBattle } from '../src/engine.js';
+
+test('legacy ledgers initialize random state once and rejected commands leave the sequence unchanged', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'adventure-random-test-'));
+  const path = join(directory, 'adventure.json');
+  const session = createAdventureSession(path);
+  try {
+    session.reset();
+    const legacy = JSON.parse(readFileSync(path, 'utf8')); delete legacy.randomState;
+    writeFileSync(path, JSON.stringify(legacy));
+    session.initializeRandomState();
+    const original = readFileSync(path, 'utf8');
+    const revision = session.status().revision;
+    session.initializeRandomState();
+    assert.equal(readFileSync(path, 'utf8'), original);
+    assert.throws(() => session.narrativeRoll(revision - 1, { difficulty: 12 }));
+    assert.throws(() => session.narrativeRoll(revision, { difficulty: NaN }));
+    assert.throws(() => session.startBattle(revision, { monsterId: 'unknown' }));
+    assert.equal(readFileSync(path, 'utf8'), original);
+    const expected = session.narrativeRoll(revision, { difficulty: 12 });
+    writeFileSync(path, original);
+    const replayed = createAdventureSession(path).narrativeRoll(revision, { difficulty: 12 });
+    assert.deepEqual(replayed.result, expected.result);
+    assert.deepEqual(replayed.resources, expected.resources);
+  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
 
 test('all Geralt check bearings change resources on success or failure and respect caps', () => {
   const outcomes = new Set<string>();

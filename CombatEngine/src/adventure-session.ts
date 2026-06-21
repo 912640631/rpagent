@@ -7,6 +7,7 @@ import { dataRevision } from './data.js';
 import { advanceBattle, createBattle } from './engine.js';
 import { makeSessionView } from './session-view.js';
 import type { BattleConfig, BattleState, Command } from './types.js';
+import { nextRandom } from './dice.js';
 
 export interface StoredBattle {
   battleId: string;
@@ -18,6 +19,8 @@ export interface StoredBattle {
 }
 
 interface AdventureState extends NarrativeState {
+  // Optional in existing version-1 ledgers; initialized before a full snapshot.
+  randomState?: number;
   revision: number;
   owner: 'narrative' | 'combat';
   battle: StoredBattle | null;
@@ -56,6 +59,9 @@ function read(path: string, checkDataRevision = true): AdventureState {
       state.battleArchive.some(record => !record || typeof record.battleId !== 'string' ||
         !Number.isSafeInteger(record.revision) || record.revision < 0 || !record.state?.outcome))) {
     throw new AdventureError('CORRUPT_SESSION', 'Battle archive is invalid');
+  }
+  if (state.randomState !== undefined && (!Number.isSafeInteger(state.randomState) || state.randomState < 1 || state.randomState > 0xffffffff)) {
+    throw new AdventureError('CORRUPT_SESSION', 'Adventure random state is invalid');
   }
   if (checkDataRevision && state.battle && state.battle.state.dataRevision !== dataRevision) {
     throw new AdventureError('DATA_MISMATCH', 'Stored battle uses a different combat data revision');
@@ -123,6 +129,16 @@ export function createAdventureSession(storagePath = defaultAdventurePath()) {
   const path = resolve(storagePath);
   return {
     status() { return view(read(path)); },
+    /** Persist the random origin even when saving before the first rule action. */
+    initializeRandomState() {
+      return locked(path, () => {
+        const state = read(path);
+        if (state.randomState === undefined) {
+          state.randomState = randomInt(1, 0x100000000);
+          write(path, state);
+        }
+      });
+    },
     /** Read-only engine snapshot, including completed battles from earlier handoffs. */
     battleRecord(battleId?: string): StoredBattle {
       const state = read(path);
@@ -169,8 +185,9 @@ export function createAdventureSession(storagePath = defaultAdventurePath()) {
         const state = read(path);
         checkRevision(state, expectedRevision);
         checkOwner(state, 'narrative');
-        const { state: rolled, result } = resolveRoll(state, input, rollDie);
-        const next = { ...state, ...rolled, revision: state.revision + 1 };
+        const random = { randomState: state.randomState ?? randomInt(1, 0x100000000) };
+        const { state: rolled, result } = resolveRoll(state, input, rollDie ?? (() => 1 + Math.floor(nextRandom(random) * 12)));
+        const next = { ...state, ...rolled, randomState: random.randomState, revision: state.revision + 1 };
         write(path, next);
         return { ...view(next), result };
       });
@@ -198,11 +215,12 @@ export function createAdventureSession(storagePath = defaultAdventurePath()) {
           throw new AdventureError('INVALID_CONFIG', 'Battle resources come from the adventure ledger');
         }
         let battle: BattleState;
+        const random = { randomState: state.randomState ?? randomInt(1, 0x100000000) };
         try { battle = createBattle({ ...config, hope: state.hope, fear: state.fear,
-          seed: config.seed ?? randomInt(1, 0x7fffffff) }); }
+          seed: config.seed ?? (1 + Math.floor(nextRandom(random) * 0x7ffffffe)) }); }
         catch (error) { throw new AdventureError('INVALID_CONFIG', (error as Error).message); }
         const battleId = randomUUID();
-        const next: AdventureState = { ...state, revision: state.revision + 1, owner: 'combat',
+        const next: AdventureState = { ...state, randomState: random.randomState, revision: state.revision + 1, owner: 'combat',
           battle: { battleId, revision: 0, state: battle,
             ...(metadata ? { metadata: structuredClone(metadata), initialState: structuredClone(battle) } : {}) },
           battleArchive: [...(state.battleArchive ?? []), ...(state.battle ? [state.battle] : [])],

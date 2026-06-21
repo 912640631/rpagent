@@ -4,10 +4,14 @@
   "private": true,
   "workspaces": [
     "CombatEngine",
-    "NarrativeDice"
+    "NarrativeDice",
+    "RpgAgent",
+    "Frontend"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "test": "npm run build && npm run test --workspaces --if-present && node --test tests/*.test.cjs"
+    "rpg": "npm run build && node RpgAgent/dist/src/cli.js",
+    "test": "npm run build && npm run test --workspaces --if-present && node --test tests/*.test.cjs",
+    "web": "npm run build && node RpgAgent/dist/src/web/server.js"
   }
 }
