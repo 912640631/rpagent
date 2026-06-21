@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Dice } from './dice.tsx';
 import { diceResults } from './dice-results.ts';
-import { api } from './api.ts';
 import { useAdventure } from './use-adventure.ts';
 import { ReadingControls, useReadingPreferences } from './reading.tsx';
 import { SavePanel } from './save-panel.tsx';

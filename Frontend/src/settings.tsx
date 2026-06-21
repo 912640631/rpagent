@@ -1,4 +1,3 @@
-import React from 'react';
 import { useSettingsDraft } from './use-settings-draft.ts';
 import { ProviderEditor, AgentRoutes, BudgetSettings } from './settings-sections.tsx';
 import { pretty } from './settings-draft.ts';

@@ -181,7 +181,6 @@ export function getOptions(state: BattleState): ActionOption[] {
     if (actor.statuses.bleeding) result.push({ id: 'clear:bleeding', name: '处理伤口', actor: side, kind: 'clear' });
     return result;
   }
-  const template = actorTemplate(state, side);
   const result: ActionOption[] = [];
   for (const [id, attack] of Object.entries(actionRules(state, 'attack'))) {
     if (actor.hp <= 0 || actionDisabled(state, side, id, attack.tags ?? [])) continue;

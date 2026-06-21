@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import type { DirectoryState } from './model-directory.ts';
 
 export function ModelPicker({ label, value, defaultModel, directory, unsaved, onChange, onRefresh }: {

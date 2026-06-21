@@ -1,4 +1,3 @@
-import React from 'react';
 import { ModelPicker } from './model-picker.tsx';
 import type { BudgetKey } from './settings-draft.ts';
 import type { useSettingsDraft } from './use-settings-draft.ts';
