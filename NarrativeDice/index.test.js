@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -55,18 +55,22 @@ test('advantage costs two Hope before the roll and stacks with modifier', () => 
   assert.equal(state.history[0].result.resources.hope, 1);
 });
 
-test('resource caps discard excess and Fear gained on a roll can be spent immediately', () => {
+test('Hope cap discards excess gained on a roll', () => {
   const full = { ...initialState(), hope: 6, fear: 11 };
   const hopeRoll = resolveRoll(full, { difficulty: 10 }, fixedDice(9, 2));
   assert.equal(hopeRoll.result.hopeGained, 0);
   assert.equal(hopeRoll.state.hope, 6);
-  const fearRoll = resolveRoll(hopeRoll.state, { difficulty: 10 }, fixedDice(2, 9));
+});
+test('Fear gained on a roll can be spent immediately', () => {
+  const fearRoll = resolveRoll({ ...initialState(), fear: 11 }, { difficulty: 10 }, fixedDice(2, 9));
   assert.equal(fearRoll.result.fearGained, 1);
   assert.equal(fearRoll.state.fear, 12);
   const spent = resolveFearSpend(fearRoll.state);
   assert.equal(spent.state.fear, 10);
   assert.equal(spent.state.history.at(-1).type, 'spend_fear');
-  const capped = resolveRoll(fearRoll.state, { difficulty: 10 }, fixedDice(2, 9));
+});
+test('Fear cap discards excess without removing the immediate complication', () => {
+  const capped = resolveRoll({ ...initialState(), fear: 12 }, { difficulty: 10 }, fixedDice(2, 9));
   assert.equal(capped.result.fearGained, 0);
   assert.equal(capped.result.immediateComplication, true);
 });
@@ -85,10 +89,11 @@ test('invalid or unaffordable calls do not roll dice or mutate state', () => {
   assert.deepEqual(state, initialState());
 });
 
-test('CLI retains the complete history across processes and reset is explicit', async () => {
+async function cliFixture(t) {
   const directory = await mkdtemp(join(tmpdir(), 'narrative-dice-'));
   const statePath = join(directory, 'session.json');
   const cli = join(import.meta.dirname, 'cli.js');
+  t.after(() => rm(directory, { recursive: true, force: true }));
   function call(command) {
     const run = spawnSync(process.execPath, [cli, '--state', statePath], {
       input: JSON.stringify(command),
@@ -97,18 +102,23 @@ test('CLI retains the complete history across processes and reset is explicit', 
     assert.equal(run.status, 0, run.stdout + run.stderr);
     return JSON.parse(run.stdout).result;
   }
-  try {
-    assert.deepEqual(call({ action: 'status' }), initialState());
-    const engine = createEngine({ statePath, rollDie: fixedDice(2, 9) });
-    const roll = await engine.roll({ difficulty: 10 });
-    assert.equal(roll.outcome, 'success_fear');
-    const after = call({ action: 'status' });
-    assert.equal(after.fear, 1);
-    assert.equal(after.history.length, 1);
-    assert.equal(after.history[0].result.immediateComplication, true);
-    assert.deepEqual(JSON.parse(await readFile(statePath, 'utf8')), after);
-    assert.deepEqual(call({ action: 'reset' }), initialState());
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
+  return { statePath, call };
+}
+test('CLI retains the complete history across processes', async t => {
+  const { statePath, call } = await cliFixture(t);
+  assert.deepEqual(call({ action: 'status' }), initialState());
+  const engine = createEngine({ statePath, rollDie: fixedDice(2, 9) });
+  const roll = await engine.roll({ difficulty: 10 });
+  assert.equal(roll.outcome, 'success_fear');
+  const after = call({ action: 'status' });
+  assert.equal(after.fear, 1);
+  assert.equal(after.history.length, 1);
+  assert.equal(after.history[0].result.immediateComplication, true);
+  assert.deepEqual(await createEngine({ statePath }).status(), after);
+});
+test('CLI reset explicitly clears existing history and resources', async t => {
+  const { statePath, call } = await cliFixture(t);
+  await createEngine({ statePath, rollDie: fixedDice(2, 9) }).roll({ difficulty: 10 });
+  assert.deepEqual(call({ action: 'reset' }), initialState());
+  assert.deepEqual(await createEngine({ statePath }).status(), initialState());
 });

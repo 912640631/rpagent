@@ -53,7 +53,7 @@ test('session keeps state outside the view and returns only events from this act
   } finally { temporary.cleanup(); }
 });
 
-test('stale and illegal commands leave the battle unchanged; new start replaces it', () => {
+test('stale and illegal commands leave the battle unchanged', () => {
   const temporary = tempSession();
   try {
     const session = createCombatSession(temporary.path);
@@ -76,7 +76,13 @@ test('stale and illegal commands leave the battle unchanged; new start replaces 
     const current = session.view(first.battleId);
     assert.equal(current.ok, true);
     if (current.ok) assert.equal(current.revision, 1);
-
+  } finally { temporary.cleanup(); }
+});
+test('a new start replaces the previous battle', () => {
+  const temporary = tempSession();
+  try {
+    const session = createCombatSession(temporary.path);
+    const first = session.start({ monsterId: 'wolf', seed: 42 }) as SessionSuccess;
     const second = session.start({ monsterId: 'water_hag', seed: 43 });
     assert.equal(second.ok, true);
     if (!second.ok) return;
@@ -127,14 +133,15 @@ test('session CLI continues a battle across separate Node processes', () => {
   } finally { temporary.cleanup(); }
 });
 
-test('every monster action and pending choice has a readable interface description', () => {
+test('every monster action has a readable interface description', () => {
   for (const monsterId of monsterIds) {
     const state = createBattle({ monsterId, initiative: 'monster', fear: 12 });
     for (const option of makeSessionView(state).options) {
       assert.notEqual(option.description, option.name, `${monsterId}/${option.id} lacks a description`);
     }
   }
-
+});
+test('pending potion choices have readable interface descriptions', () => {
   let pending: BattleState | undefined;
   for (let seed = 1; seed < 1000; seed++) {
     const state = createBattle('fiend', seed);

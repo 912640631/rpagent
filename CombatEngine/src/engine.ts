@@ -572,6 +572,7 @@ class Resolver {
 
   private endBattle(outcome: Outcome): void {
     this.state.outcome = outcome;
+    if (outcome === 'geralt_dead') this.state.combatants.geralt.dead = true;
     this.state.pending = null;
     this.state.combatants.geralt.toxicity = combatData.global.toxicity.reset_current_to;
     this.emit('battle_ended', { outcome });

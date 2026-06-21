@@ -77,13 +77,17 @@ test('only attack hit checks accept AI advantage', () => {
   assert.equal(check.details.advantage, 'advantage');
 });
 
-test('fear cost and destroyed body parts constrain monster options', () => {
+test('destroyed wings remove flight options while allowing a normal attack', () => {
   const state = monsterTurn('manticore_test');
   assert(getOptions(state).some(option => option.id === 'attack:diving_assault'));
   state.combatants.monster.trauma.wings = 3;
   assert(!getOptions(state).some(option => option.id === 'attack:diving_assault'));
   assert(!getOptions(state).some(option => option.id === 'action:flying_escape'));
   assert(getOptions(state).some(option => option.id === 'attack:normal'));
+});
+test('monster options exclude attacks whose fear cost cannot be paid', () => {
+  const state = monsterTurn('manticore_test');
+  assert(getOptions(state).some(option => option.id === 'attack:venomous_tail_sting'));
   state.fear = 0;
   assert(!getOptions(state).some(option => option.id === 'attack:venomous_tail_sting'));
 });
@@ -94,11 +98,14 @@ test('damage rank, armor and part trauma follow the same final rank', () => {
   const next = advanceBattle(state, { type: 'action', id: 'sword:normal', part: 'legs' });
   const damage = next.events.find(event => event.type === 'damage')!;
   const trauma = next.events.find(event => event.type === 'part_trauma')!;
-  assert.equal(trauma.details.after, combatData.global.part_trauma.increase_by_final_damage_rank[damage.details.rank as string]);
-  assert.equal(next.combatants.monster.hp, next.combatants.monster.maxHp - combatData.global.damage_rank.hp_loss[damage.details.rank as string]);
+  // The seeded hit rolls 8: heavy damage removes 2 HP and adds 2 leg trauma.
+  assert.equal(damage.details.rolled, 8);
+  assert.equal(damage.details.rank, 'heavy');
+  assert.equal(trauma.details.after, 2);
+  assert.equal(next.combatants.monster.hp, 0);
 });
 
-test('Quen triggers only when damage would cost HP after armor', () => {
+test('Quen remains available when armor absorbs all HP loss', () => {
   const blocked = advanceBattle(createBattle('wolf', 1003), { type: 'action', id: 'sign:quen' });
   assert.equal(blocked.initiative, 'monster');
   const absorbed = advanceBattle(blocked, { type: 'action', id: 'attack:normal' });
@@ -106,14 +113,16 @@ test('Quen triggers only when damage would cost HP after armor', () => {
   assert.equal(absorbed.combatants.geralt.armor, 2);
   assert(absorbed.combatants.geralt.effects.some(effect => effect.kind === 'quen'));
   assert(!absorbed.events.some(event => event.type === 'quen_triggered'));
-
+});
+test('Quen absorbs HP loss when armor is broken', () => {
   const exposed = advanceBattle(createBattle('wolf', 1003), { type: 'action', id: 'sign:quen' });
   exposed.combatants.geralt.armor = 0;
   const shielded = advanceBattle(exposed, { type: 'action', id: 'attack:normal' });
   assert.equal(shielded.combatants.geralt.hp, 6);
   assert(shielded.events.some(event => event.type === 'quen_triggered'));
   assert(!shielded.combatants.geralt.effects.some(effect => effect.kind === 'quen'));
-
+});
+test('Quen protects armor when absorbing a heavy hit', () => {
   const heavy = advanceBattle(createBattle('wolf', 1009), { type: 'action', id: 'sign:quen' });
   const reduced = advanceBattle(heavy, { type: 'action', id: 'attack:normal' });
   assert(reduced.events.some(event => event.type === 'quen_triggered'));
@@ -160,11 +169,13 @@ test('rotfiend death explosion remains active without position data', () => {
   assert(next.events.some(event => event.type === 'damage' && event.actor === 'monster'));
 });
 
-test('status immunity and status ticks are mechanically resolved', () => {
+test('venomous tail sting poisons Geralt on a hit', () => {
   const state = monsterTurn('manticore_test', 16);
   state.combatants.geralt.defense = -100;
   const next = advanceBattle(state, { type: 'action', id: 'attack:venomous_tail_sting' });
   assert(next.combatants.geralt.statuses.poisoned);
+});
+test('poison expires one stack after its owner action', () => {
   const immune = createBattle('manticore_test', 1);
   immune.combatants.monster.statuses.poisoned = 2;
   immune.initiative = 'monster';
@@ -204,7 +215,7 @@ test('persistent damage waits for its owner and clearing prevents its next tick'
   assert(!afterClear.events.some(event => event.type === 'persistent_damage'));
 });
 
-test('all signs and potions are accepted through structured commands', () => {
+test('all signs are accepted through structured commands', () => {
   for (const signId of Object.keys(combatData.global.signs)) {
     const state = createBattle('wild_dog', 101);
     state.combatants.monster.defense = -100;
@@ -212,6 +223,8 @@ test('all signs and potions are accepted through structured commands', () => {
     const next = advanceBattle(state, command);
     assert(next.events.some(event => event.type === 'check'), signId);
   }
+});
+test('all potions are accepted through structured commands', () => {
   for (const potionId of Object.keys(combatData.global.potions)) {
     const state = createBattle('wild_dog', 101);
     const next = advanceBattle(state, { type: 'action', id: `potion:${potionId}` });
@@ -309,13 +322,14 @@ test('rotfiend explosion remains active when burning expires before bleeding dea
   assert(next.events.some(event => event.type === 'death_effect'));
 });
 
-test('tagged action trauma penalties apply to monster checks beyond attacks', () => {
+test('third-eye trauma penalizes hypnosis checks', () => {
   const hypnosis = createBattle({ monsterId: 'fiend', seed: 8740, initiative: 'monster', fear: 1,
     initial: { monster: { trauma: { third_eye: 2 } } } });
   const afterHypnosis = advanceBattle(hypnosis, { type: 'action', id: 'action:third_eye_hypnosis' });
   const hypnosisCheck = afterHypnosis.events.find(event => event.type === 'check')!;
   assert((hypnosisCheck.details.modifier as number) < 0);
-
+});
+test('wing trauma penalizes flying escape checks', () => {
   const escape = createBattle({ monsterId: 'manticore_test', seed: 9728, initiative: 'monster',
     initial: { monster: { trauma: { wings: 2 } } } });
   const afterEscape = advanceBattle(escape, { type: 'action', id: 'action:flying_escape' });

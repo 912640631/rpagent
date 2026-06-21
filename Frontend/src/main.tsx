@@ -6,6 +6,8 @@ import { api } from './api.ts';
 import { useAdventure } from './use-adventure.ts';
 import { ReadingControls, useReadingPreferences } from './reading.tsx';
 import { SavePanel } from './save-panel.tsx';
+import { ModelDirectories } from './model-directory.ts';
+import { ModelPicker } from './model-picker.tsx';
 import type { CSSProperties } from 'react';
 import type { Settings, WebProvider, WebRoute } from '../../RpgAgent/src/web/settings.js';
 import type { AdventureState, AgentRole, CharacterCard, ConnectionTest, RunAction, SettingsResponse } from './types.ts';
@@ -20,17 +22,32 @@ const potionNames: Record<string, string> = { thunderbolt: '雷霆', swallow: '�
 function Json({ value }: { value: unknown }) { return <pre>{pretty(value)}</pre>; }
 function Settings({ onClose, run, error }: { onClose: () => void; run: RunAction; error: string }) {
   const [data, setData] = useState<SettingsResponse | null>(null), [draft, setDraft] = useState<Settings | null>(null), [providers, setProviders] = useState(''), [message, setMessage] = useState('');
+  const [, redrawModels] = useState(0);
+  const directories = useRef<ModelDirectories | null>(null);
+  useEffect(() => {
+    if (!data) return;
+    const catalog = new ModelDirectories(id => api(`/providers/${encodeURIComponent(id)}/models`), () => redrawModels(n => n + 1));
+    directories.current = catalog;
+    for (const id of Object.keys(data.value.providers)) void catalog.load(id);
+    return () => { catalog.dispose(); if (directories.current === catalog) directories.current = null; };
+  }, [data]);
   useEffect(() => { run(async () => { const d = await api<SettingsResponse>('/settings'); setData(d); setDraft(d.value); setProviders(pretty(d.value.providers)); }); }, [run]);
   if (!draft || !data) return <div className="modal"><section>读取设置…<button onClick={onClose}>关闭</button></section></div>;
   const route = <K extends keyof WebRoute,>(role: AgentRole, key: K, value: WebRoute[K]) => setDraft(d => d ? ({ ...d, [role]: { ...d[role], [key]: value } }) : d);
   const save = () => run(async () => { const value = await api<Settings>('/settings', { ...draft, providers: JSON.parse(providers) }); setDraft(value); setProviders(pretty(value.providers)); setData(await api<SettingsResponse>('/settings')); setMessage('已保存 · 从下一次模型请求生效'); });
   let connections: Record<string, WebProvider> | null; try { connections = JSON.parse(providers) as Record<string, WebProvider>; } catch { connections = null; }
   const connection = <K extends keyof WebProvider,>(id: string, key: K, value: WebProvider[K]) => setProviders(pretty({ ...connections, [id]: { ...connections?.[id], [key]: value } }));
+  const unsaved = (id: string) => {
+    const current = connections?.[id], saved = data.value.providers[id];
+    return !current || !saved || current.baseURL !== saved.baseURL || current.apiKeyEnv !== saved.apiKeyEnv || current.apiKey !== saved.apiKey;
+  };
+  const picker = (id: string, label: string, value: string, onChange: (value: string) => void, defaultModel?: string) =>
+    <ModelPicker key={`${label}:${id}`} label={label} value={value} defaultModel={defaultModel} directory={directories.current?.get(id)} unsaved={unsaved(id)} onChange={onChange} onRefresh={() => { void directories.current?.load(id, true); }}/>;
   return <div className="modal" role="dialog" aria-modal="true" aria-label="模型与阅读设置"><section><header><h2>模型与提示词</h2><button onClick={onClose}>关闭</button></header>{error && <p className="banner error" role="alert">{error}</p>}<p>两个 Agent 独立配置。保存后从下一请求生效，当前请求保持原配置。</p>
-    <details><summary>连接管理 · API 地址与凭据</summary>{connections && Object.entries(connections).map(([id, p]) => <fieldset key={id}><legend>{id}</legend><label>API 地址<input value={p.baseURL || ''} onChange={e => connection(id, 'baseURL', e.target.value)}/></label><label>默认模型<input value={p.defaultModel || ''} onChange={e => connection(id, 'defaultModel', e.target.value)}/></label><label>API Key 环境变量<input value={p.apiKeyEnv || ''} onChange={e => connection(id, 'apiKeyEnv', e.target.value || undefined)}/></label><label>API Key（仅本地保存）<input type="password" autoComplete="off" placeholder="不填写则保留；优先使用环境变量" value={p.apiKey || ''} onChange={e => connection(id, 'apiKey', e.target.value)}/></label><button onClick={() => connection(id, 'apiKey', '')}>清除已保存密钥</button></fieldset>)}<button onClick={() => { const key = `provider-${Object.keys(connections || {}).length + 1}`; setProviders(pretty({ ...connections, [key]: { ...data.defaults.providers.local } })); }}>添加 Provider</button></details>
+    <details><summary>连接管理 · API 地址与凭据</summary>{connections && Object.entries(connections).map(([id, p]) => <fieldset key={id}><legend>{id}</legend><label>API 地址<input value={p.baseURL || ''} onChange={e => connection(id, 'baseURL', e.target.value)}/></label>{picker(id, `${id}默认模型`, p.defaultModel || '', value => connection(id, 'defaultModel', value))}<label>API Key 环境变量<input value={p.apiKeyEnv || ''} onChange={e => connection(id, 'apiKeyEnv', e.target.value || undefined)}/></label><label>API Key（仅本地保存）<input type="password" autoComplete="off" placeholder="不填写则保留；优先使用环境变量" value={p.apiKey || ''} onChange={e => connection(id, 'apiKey', e.target.value)}/></label><button onClick={() => connection(id, 'apiKey', '')}>清除已保存密钥</button></fieldset>)}<button onClick={() => { const key = `provider-${Object.keys(connections || {}).length + 1}`; setProviders(pretty({ ...connections, [key]: { ...data.defaults.providers.local } })); }}>添加 Provider</button></details>
     <div className="settings-agents">{(['main', 'combat'] as const).map(role => <fieldset key={role}><legend>{roles[role]}</legend>
-      <label>Provider<select value={draft[role].provider} onChange={e => { route(role, 'provider', e.target.value); route(role, 'reasoning', ''); }}>{Object.keys(draft.providers).map(id => <option key={id}>{id}</option>)}</select></label>
-      <label>模型<input placeholder={draft.providers[draft[role].provider]?.defaultModel} value={draft[role].model || ''} onChange={e => route(role, 'model', e.target.value || undefined)}/></label>
+      <label>Provider<select value={draft[role].provider} onChange={e => { route(role, 'provider', e.target.value); route(role, 'reasoning', ''); void directories.current?.load(e.target.value); }}>{Object.keys(connections || draft.providers).map(id => <option key={id}>{id}</option>)}</select></label>
+      {picker(draft[role].provider, `${roles[role]}模型`, draft[role].model || '', value => route(role, 'model', value || undefined), connections?.[draft[role].provider]?.defaultModel)}
       <label>推理强度<select value={draft[role].reasoning || ''} onChange={e => route(role, 'reasoning', e.target.value)}><option value="">服务默认</option>{Object.keys(draft.providers[draft[role].provider]?.reasoning?.values || {}).map(v => <option key={v}>{v}</option>)}</select></label>
       <label>上下文容量<input type="number" min="4096" value={draft[role].contextTokens} onChange={e => route(role, 'contextTokens', +e.target.value)}/></label>
       <label>风格指令<textarea value={draft[role].style} onChange={e => route(role, 'style', e.target.value)}/></label>

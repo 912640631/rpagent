@@ -177,16 +177,26 @@ test('Chat Completions adapter assembles fragmented SSE tool arguments and usage
   assert.equal(received.stream_options.include_usage, true);
 });
 
-test('main calls NarrativeDice and uses the persisted authoritative result', async t => {
+test('narrative dice remain authoritative in the next model request and after restart', async t => {
   const { store, rules } = fixture(t);
   const mock = new Mock([[call('r1', 'narrative_roll', { difficulty: 10 }), { type: 'usage', input: 100, output: 10 }],
     [{ type: 'text', text: '你越过了河。' }, { type: 'usage', input: 200, output: 20 }]]);
   await new Harness(config, store, rules, output, { main: mock, combat: mock }).turn('我要过河');
   assert.equal(rules.adventure.status().revision, 1);
-  const tool = store.data.main.find(m => m.role === 'tool');
+  const tool = mock.inputs[1]!.find(m => m.role === 'tool' && m.callId === 'r1');
   assert.ok(JSON.parse(tool!.content).result);
-  assert.equal(store.data.mainUsage, 220);
-  assert.equal(new Store(store.path).data.main.length, 4);
+  const resumed = new Mock([[{ type: 'text', text: '你继续沿河前行。' }]]);
+  await new Harness(config, new Store(store.path), new Rules(rules.path), output, { main: resumed, combat: resumed }).turn('继续');
+  assert.deepEqual(resumed.inputs[0]!.find(m => m.role === 'tool' && m.callId === 'r1'), tool);
+  assert.equal(new Rules(rules.path).adventure.status().revision, 1);
+});
+
+test('latest model usage replaces the previous context budget estimate', async t => {
+  const { store, rules } = fixture(t);
+  const mock = new Mock([[call('r1', 'rules_status'), { type: 'usage', input: 100, output: 10 }],
+    [{ type: 'text', text: '继续。' }, { type: 'usage', input: 200, output: 20 }]]);
+  await new Harness(config, store, rules, output, { main: mock, combat: mock }).turn('查看状态');
+  assert.equal(new Store(store.path).data.mainUsage, 220);
 });
 
 test('battle child receives only handoff, cannot auto-select player moves, and uses fresh context', async t => {
@@ -279,22 +289,28 @@ test('finished battle returns bounded truth to main once, with post-action flavo
   assert.equal(store.data.main.filter(m => m.content.includes('战斗子 Agent 的结构化结果')).length, 1);
 });
 
-test('API usage triggers compaction before next main request, missing usage switches later requests', async t => {
+test('API usage triggers compaction before the next main request', async t => {
   const { store, rules } = fixture(t);
   store.data.main = [{ role: 'user', content: 'A prior scene with a river and village. '.repeat(1600) },
     { role: 'assistant', content: '现在到了河边。' }];
   store.data.mainUsage = 26000;
   const memo = { currentSituation: '河边', necessaryFacts: '村庄在对岸', unfinishedActionsAndIntent: '准备过河' };
   const mock = new Mock([[{ type: 'text', text: JSON.stringify(memo) }],
-    [{ type: 'text', text: '你站在河边。' }], [{ type: 'text', text: '你查看河水。' }]]);
+    [{ type: 'text', text: '你站在河边。' }, { type: 'usage', input: 100, output: 10 }]]);
   const harness = new Harness(config, store, rules, output, { main: mock, combat: mock });
   await harness.turn('继续');
   assert.deepEqual(store.data.memo, memo);
   assert.equal(mock.options[0]!.stream, false);
   assert.equal(mock.options[1]!.stream, true);
-  assert.equal(store.data.streamWithoutUsage, true);
+});
+test('missing usage switches later requests to non-streaming without an automatic budget estimate', async t => {
+  const { store, rules } = fixture(t);
+  const mock = new Mock([[{ type: 'text', text: '你站在河边。' }], [{ type: 'text', text: '你查看河水。' }]]);
+  const harness = new Harness(config, store, rules, output, { main: mock, combat: mock });
+  await harness.turn('继续');
+  assert.equal(mock.options[0]!.stream, true);
   await harness.turn('查看河水');
-  assert.equal(mock.options[2]!.stream, false);
+  assert.equal(mock.options[1]!.stream, false);
   assert.equal(store.data.mainUsage, undefined);
 });
 
@@ -334,7 +350,7 @@ test('two invalid summaries retain original saved context', async t => {
   assert.equal(mock.inputs.length, 2);
 });
 
-test('settlement is bounded and next battle preserves supported character fields', t => {
+test('settlement obeys its token budget and rejects an insufficient essential budget', t => {
   const { rules } = fixture(t);
   const started = rules.execute('start_battle', startArgs) as { battleId: string };
   for (let i = 0; i < 600; i++) {
@@ -346,15 +362,39 @@ test('settlement is bounded and next battle preserves supported character fields
   const result = rules.settlement(started.battleId, 1500, '风味'.repeat(10000));
   assert.ok(tokens(result) <= 1500);
   assert.throws(() => rules.settlement(started.battleId, 1), /超过预算/);
-  const previous = rules.latestCharacter()!;
-  if (!previous.dead && previous.hp > 0) {
-    const next = rules.execute('start_battle', { ...startArgs, monsterObjectId: 'enemy-2' }) as { battleId: string };
-    const actor = rules.adventure.battleRecord(next.battleId).state.combatants.geralt;
-    assert.equal(actor.hp, previous.hp);
-    assert.equal(actor.armor, previous.armor);
-    assert.deepEqual(actor.potions, previous.potions);
-  } else assert.throws(() => rules.execute('start_battle', startArgs), /不能.*复活/);
 });
+
+test('a later battle preserves supported character resources and consumed potions', t => {
+  const { rules } = fixture(t);
+  const status = rules.adventure.status();
+  const battle = rules.handoff.start(status.revision, { monsterId: 'fiend', seed: 1, maxActions: 1,
+    initial: { geralt: { hp: 4, armor: 1, signPoints: 2, potions: ['swallow'] } } }, {
+    scene: '河畔', facts: [], objectives: [], environment: [], risks: [],
+    participants: [{ id: 'geralt', role: 'geralt' }, { id: 'enemy', role: 'monster' }],
+    resources: { revision: status.revision, ...status.resources },
+  });
+  rules.handoff.act(battle.battleId, 0, { type: 'action', id: 'potion:swallow' });
+  const next = rules.execute('start_battle', startArgs) as { battleId: string };
+  const actor = rules.handoff.status(next.battleId).combatants.geralt;
+  assert.equal(actor.hp, 6); assert.equal(actor.armor, 1); assert.equal(actor.signPoints, 2);
+  assert.deepEqual(actor.potions, []);
+});
+for (const choice of ['survive', 'gamble']) {
+  test(`a new battle cannot revive Geralt after dying choice ${choice}`, t => {
+    const { rules } = fixture(t);
+    const status = rules.adventure.status();
+    const battle = rules.handoff.start(status.revision, { monsterId: 'fiend', seed: 5632, initiative: 'monster',
+      initial: { geralt: { hp: 1, armor: 0 } } }, {
+      scene: '河畔', facts: [], objectives: [], environment: [], risks: [],
+      participants: [{ id: 'geralt', role: 'geralt' }, { id: 'enemy', role: 'monster' }],
+      resources: { revision: status.revision, ...status.resources },
+    });
+    const hit = rules.handoff.act(battle.battleId, 0, { type: 'action', id: 'attack:normal' });
+    rules.handoff.act(battle.battleId, hit.revision, { type: 'decision', choice });
+    assert.equal(rules.latestCharacter()!.hp, 0);
+    assert.throws(() => rules.execute('start_battle', startArgs), /不能.*复活/);
+  });
+}
 
 test('init reads the existing source format and keeps routing separate from credentials', t => {
   const { dir } = fixture(t);

@@ -182,26 +182,32 @@ test('major event waits for exact parent reply, blocks actions and ignores sibli
   assert.deepEqual(await f.call('rpg_battle_status', { battleId: started.battleId }), before);
 });
 
-test('major event delivery failure, cancellation and unavailable GM leave engine unchanged and permit retry', async t => {
-  const f = fixture(t);
-  const started = await f.start();
-  const args = { battleId: started.battleId, question: 'New main-story fact?' };
-  const before = await f.call('rpg_battle_status', { battleId: started.battleId });
-  f.setFailSend(true);
-  await assert.rejects(f.call('rpg_battle_escalate', args, started.child), /delivery unavailable/);
-  f.setFailSend(false);
-  const abort = new AbortController();
-  const waiting = f.call('rpg_battle_escalate', args, started.child, abort.signal);
-  const rejection = assert.rejects(waiting, /cancelled/);
-  abort.abort(); await rejection;
-  f.agents.delete('gm');
-  await assert.rejects(f.call('rpg_battle_escalate', args, started.child), /GM unavailable/);
-  f.agents.set('gm', f.parent);
-  const retry = f.call('rpg_battle_escalate', args, started.child);
-  f.insert(started.child, message('recovered-parent', 'agent-message', 'gm'));
-  assert.equal((await retry).messageId, 'recovered-parent');
-  assert.deepEqual(await f.call('rpg_battle_status', { battleId: started.battleId }), before);
-});
+for (const failure of ['delivery failure', 'cancellation', 'unavailable GM']) {
+  test(`major event ${failure} leaves the battle unchanged and permits retry`, async t => {
+    const f = fixture(t);
+    const started = await f.start();
+    const args = { battleId: started.battleId, question: 'New main-story fact?' };
+    const before = await f.call('rpg_battle_status', { battleId: started.battleId });
+    if (failure === 'delivery failure') {
+      f.setFailSend(true);
+      await assert.rejects(f.call('rpg_battle_escalate', args, started.child), /delivery unavailable/);
+      f.setFailSend(false);
+    } else if (failure === 'cancellation') {
+      const abort = new AbortController();
+      const rejection = assert.rejects(f.call('rpg_battle_escalate', args, started.child, abort.signal), /cancelled/);
+      abort.abort(); await rejection;
+    } else {
+      f.agents.delete('gm');
+      await assert.rejects(f.call('rpg_battle_escalate', args, started.child), /GM unavailable/);
+      f.agents.set('gm', f.parent);
+    }
+    assert.deepEqual(await f.call('rpg_battle_status', { battleId: started.battleId }), before);
+    const retry = f.call('rpg_battle_escalate', args, started.child);
+    f.insert(started.child, message('recovered-parent', 'agent-message', 'gm'));
+    assert.equal((await retry).messageId, 'recovered-parent');
+    assert.deepEqual(await f.call('rpg_battle_status', { battleId: started.battleId }), before);
+  });
+}
 
 test('disposing a child cancels native input without consuming later messages', async t => {
   const f = fixture(t);
@@ -243,12 +249,15 @@ test('repeated premature final replies surface a runtime error instead of fabric
   assert.equal((await f.call('rpg_battle_status', { battleId: started.battleId })).phase, 'active');
 });
 
-test('provider preflight does not commit; failed child spawn preserves handoff for attachment retry', async t => {
+test('provider preflight failure does not commit a battle', async t => {
   const f = fixture(t);
   f.setProvider(false);
   await assert.rejects(f.start(), /continuable spawn provider/);
   assert.equal((await f.call('rpg_adventure_status')).revision, 0);
-  f.setProvider(true); f.setFailSpawn(true);
+});
+test('failed child spawn preserves the handoff for attachment retry', async t => {
+  const f = fixture(t);
+  f.setFailSpawn(true);
   await assert.rejects(f.start(), /saved.*Retry rpg_attach_battle/);
   const saved = await f.call('rpg_adventure_status');
   assert.equal(saved.owner, 'combat');

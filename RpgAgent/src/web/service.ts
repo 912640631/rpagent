@@ -8,6 +8,7 @@ import { Rules } from '../tools.js';
 import type { Adapter } from '../types.js';
 import { SettingsStore } from './settings.js';
 import { atomicJson } from '../persistence.js';
+import { visibleStoryText } from './story-text.js';
 
 type Phase = 'waiting' | 'running' | 'recovery';
 export interface Story { id: string; role: 'user' | 'assistant'; text: string; agent?: string }
@@ -138,7 +139,10 @@ export class AdventureService {
     const live = this.open(id); const web = journal(live);
     const status = live.rules.adventure.status();
     return this.settings.sanitize({ ...live.meta, phase: web.phase, queued: live.queued, error: web.error, sequence: web.sequence,
-      story: web.story, stream: web.stream, rules: live.rules.status(), character: live.rules.latestCharacter(), battle: live.store.data.battleId ? live.rules.handoff.status(live.store.data.battleId).view : null,
+      story: web.story.map(message => message.role === 'assistant' ? { ...message, text: visibleStoryText(message.text) } : message)
+        .filter(message => message.role !== 'assistant' || message.text.trim().length > 0),
+      stream: web.stream ? { ...web.stream, text: visibleStoryText(web.stream.text, true) } : undefined,
+      rules: live.rules.status(), character: live.rules.latestCharacter(), battle: live.store.data.battleId ? live.rules.handoff.status(live.store.data.battleId).view : null,
       awaiting: live.store.data.battleId ? live.rules.handoff.status(live.store.data.battleId).awaiting : null,
       saves: this.snapshots(id), settingsRevision: this.settings.revision });
   }

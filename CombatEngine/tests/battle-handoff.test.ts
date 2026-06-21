@@ -124,6 +124,19 @@ test('dying choice remains pending across reload until the player explicitly dec
   assert.equal(recovered.settlement(start.battleId).structured.combatants[0]!.dead, false);
 });
 
+test('a fatal gamble identifies Geralt as dead in the returned settlement', t => {
+  const f = fixture(t);
+  const start = f.handoff.start(0, { monsterId: 'fiend', seed: 5632, initiative: 'monster',
+    initial: { geralt: { hp: 1, armor: 0 } } }, f.context());
+  const hit = f.handoff.act(start.battleId, 0, { type: 'action', id: 'attack:normal' });
+  f.handoff.act(start.battleId, hit.revision, { type: 'decision', choice: 'gamble' });
+  const result = createBattleHandoff(f.path).settlement(start.battleId).structured;
+  assert.equal(result.outcome, 'geralt_dead');
+  assert.deepEqual(result.dead, ['witcher-1']);
+  assert.deepEqual(result.survivors, ['wolf-7']);
+  assert.equal(result.combatants[0]!.dead, true);
+});
+
 function hitWithoutTransientFields<T extends { adventureRevision: number; events: unknown[] }>(hit: T) {
   const { adventureRevision: _revision, events: _events, ...status } = hit;
   return status;

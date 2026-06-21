@@ -32,7 +32,7 @@ test('legacy ledgers initialize random state once and rejected commands leave th
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });
 
-test('all Geralt check bearings change resources on success or failure and respect caps', () => {
+test('all Geralt check bearings change resources on success or failure', () => {
   const outcomes = new Set<string>();
   for (let seed = 1; seed < 2000 && outcomes.size < 5; seed++) {
     for (const defense of [1, 30]) {
@@ -50,14 +50,15 @@ test('all Geralt check bearings change resources on success or failure and respe
     }
   }
   assert.deepEqual(outcomes, new Set(['critical', 'success_hope', 'success_fear', 'failure_hope', 'failure_fear']));
-
+});
+test('Geralt checks cannot gain resources beyond their caps', () => {
   const capped = advanceBattle(createBattle({ monsterId: 'wolf', seed: 42, hope: 6, fear: 12 }),
     { type: 'action', id: 'sword:normal' });
   assert.equal(capped.hope, 6);
   assert.equal(capped.fear, 12);
 });
 
-test('hope bonus stacks with environmental advantage and insufficient hope leaves state intact', () => {
+test('hope bonus stacks with environmental advantage', () => {
   const state = createBattle({ monsterId: 'wolf', seed: 42, hope: 2 });
   const plain = advanceBattle(state, { type: 'action', id: 'sword:normal', advantage: 'advantage' });
   const boosted = advanceBattle(state, { type: 'action', id: 'sword:normal', advantage: 'advantage', useHopeAdvantage: true });
@@ -66,8 +67,13 @@ test('hope bonus stacks with environmental advantage and insufficient hope leave
   assert.deepEqual(boostedCheck.details.dice, plainCheck.details.dice);
   assert.equal(boostedCheck.details.modifier, Number(plainCheck.details.modifier) + 3);
   assert(boosted.events.some(event => event.type === 'hope_spent' && event.details.amount === 2));
-  assert.throws(() => advanceBattle(createBattle({ monsterId: 'wolf', seed: 42, hope: 1 }),
+});
+test('insufficient hope leaves the battle unchanged', () => {
+  const state = createBattle({ monsterId: 'wolf', seed: 42, hope: 1 });
+  const before = structuredClone(state);
+  assert.throws(() => advanceBattle(state,
     { type: 'action', id: 'sword:normal', useHopeAdvantage: true }), /Insufficient hope/);
+  assert.deepEqual(state, before);
 });
 
 test('one persisted ledger spans narrative, battle and narrative across process boundaries', () => {
@@ -119,7 +125,7 @@ test('one persisted ledger spans narrative, battle and narrative across process 
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });
 
-test('monster move spends shared fear and an unaffordable Geralt action does not commit', () => {
+test('a monster move spends shared fear', () => {
   const directory = mkdtempSync(join(tmpdir(), 'adventure-resource-test-'));
   const session = createAdventureSession(join(directory, 'adventure.json'));
   try {
@@ -134,7 +140,8 @@ test('monster move spends shared fear and an unaffordable Geralt action does not
     assert(acted.events.some(event => event.type === 'fear_spent' && event.details.amount === 1));
     assert.equal(acted.battle?.view.fear, 0);
   } finally { rmSync(directory, { recursive: true, force: true }); }
-
+});
+test('an unaffordable Geralt action cannot commit', () => {
   const otherDirectory = mkdtempSync(join(tmpdir(), 'adventure-hope-test-'));
   const other = createAdventureSession(join(otherDirectory, 'adventure.json'));
   try {

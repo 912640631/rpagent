@@ -33,6 +33,9 @@ export function createWebServer(service: AdventureService, assets: string) {
         if (url.pathname === '/api/adventures') return json(service.list());
         if (url.pathname === '/api/settings') return json(service.settings.sanitize({ value: service.settings.public(), defaults, prompts: service.settings.prompts(), revision: service.settings.revision }));
         if (url.pathname === '/api/monsters') return json(service.monsters());
+        if (segments[1] === 'providers' && segments[3] === 'models' && segments.length === 4) {
+          return json(await service.settings.models(decodeURIComponent(segments[2]!)));
+        }
         const id = segments[2]!;
         if (segments[1] === 'adventures' && segments[3] === 'state') return json(service.state(id));
         if (segments[1] === 'adventures' && segments[3] === 'events') {

@@ -14,6 +14,10 @@ npm run rpg
 `--init` 从根目录 `api接入.txt` 读取 local、deepseek 通道，生成被 Git 忽略的 `.local/rpg/providers.json`。不会输出密钥，不覆盖现有配置。
 也可复制 `providers.example.json` 到该路径，用 `apiKeyEnv` 引用环境变量；不要提交带密钥的配置。
 
+网页通过 `npm run web` 启动。在“模型与提示词”中可读取已保存 Provider 的模型目录，为两个 Agent 或 Provider 默认模型选择模型，也可手动输入模型 ID。修改连接后先保存，再刷新目录；目录仅代表 Provider 列出的模型，实际调用请使用“测试已保存连接”。目录请求在 10 秒后超时，服务端通过 `GET /api/providers/:id/models` 返回去重、排序后的模型 ID，不返回凭据。
+
+玩家故事和实时输出会隐藏内部叙事续接备忘 JSON，已有历史与旧存档读档后同样生效。过滤只作用于展示，不修改 Agent 上下文或原始存档；执行控制台的 `message.complete` 详情保留原始消息用于排查。
+
 Provider 只做路由键，多个 Provider 共用 `openai-chat` Adapter。`baseURL` 是 API 前缀（如 `/v1`），Adapter 追加 `/chat/completions`。
 主 Agent 和战斗子 Agent 可分别配置 provider/model。`requestFields` 可提供兼容服务的额外字段，例如 `reasoning_effort` 或 `thinking`；协议保留字段由 Adapter 覆盖。
 不支持 SSE 或 `stream_options` 的服务可在对应 Provider 设置 `stream: false`。

@@ -13,6 +13,31 @@ import { chooseTestCommand } from 'witcher-combat-engine';
 
 const text = (text: string): StreamChunk => ({ type: 'text', text });
 const call = (name: string, args: unknown = {}): StreamChunk => ({ type: 'call', call: { id: crypto.randomUUID(), name, arguments: JSON.stringify(args) } });
+
+test('story projection hides memos in live updates, old history and restored snapshots but retains raw events', async t => {
+  const memo = JSON.stringify({ currentSituation: '坠落中', necessaryFacts: '女术士在附近', unfinishedActionsAndIntent: '等待玩家' });
+  const raw = `地面崩塌，你要怎么做？\n\n\`\`\`json\n${memo}\n\`\`\``;
+  const main = new Mock([[...Array.from(raw, text), { type: 'usage', input: 100, output: 10 }], [text(memo)]]);
+  const { service, id, root } = fixture(t, main);
+  const updates: string[] = [];
+  const unsubscribe = service.subscribe(() => { updates.push(service.state(id).stream?.text ?? ''); });
+  t.after(unsubscribe);
+  service.submit(id, 'memo-story', '玩家原文：' + memo); await service.idle(id);
+  assert.ok(updates.every(text => !text.includes('currentSituation') && !text.includes('女术士在附近')));
+  assert.equal(service.state(id).story.at(-1)?.text, '地面崩塌，你要怎么做？');
+  assert.equal(service.state(id).story[0]?.text, '玩家原文：' + memo);
+  assert.ok(service.events(id).some(e => e.type === 'message.complete' && e.text === raw));
+  const snapshot = await service.save(id, '备忘隐藏前的原始记录');
+  service.submit(id, 'memo-only', '继续'); await service.idle(id);
+  assert.equal(service.state(id).story.at(-1)?.role, 'user');
+  await service.restore(id, snapshot.id);
+  assert.equal(service.state(id).story.at(-1)?.text, '地面崩塌，你要怎么做？');
+  await service.close();
+  const reopened = new AdventureService(root, { main: new Mock([]), combat: new Mock([]) });
+  t.after(() => reopened.close());
+  assert.equal(reopened.state(id).story.at(-1)?.text, '地面崩塌，你要怎么做？');
+  assert.ok(reopened.events(id).some(e => e.type === 'message.complete' && e.text === raw));
+});
 class Mock implements Adapter {
   inputs: Message[][] = []; options: GenerateOptions[] = [];
   constructor(readonly responses: (StreamChunk[] | Error | (() => Promise<StreamChunk[]>))[]) {}
@@ -29,6 +54,12 @@ function fixture(t: TestContext, main: Mock, combat = new Mock([])) {
   t.after(async () => { await service.close(); rmSync(root, { recursive: true, force: true }); });
   const id = service.create('河畔手记').id;
   return { service, id, root };
+}
+async function webEndpoint(t: TestContext, service: AdventureService) {
+  const server = createWebServer(service, join(import.meta.dirname, '../../Frontend/dist'));
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  return `http://127.0.0.1:${(server.address() as { port: number }).port}`;
 }
 test('queued safe snapshot restores story, rules and memory, retains current settings and creates backup', async t => {
   let release!: (v: StreamChunk[]) => void;
@@ -124,21 +155,43 @@ test('raising battle result budget lets manual retry settle a finished battle wi
   assert.equal(main.inputs.length, 1);
   assert.equal(main.inputs[0]!.filter(m => m.content.includes('战斗子 Agent 的结构化结果')).length, 1);
 });
-test('battle handoff, safe battle snapshot and isolated monster test preserve original adventure', async t => {
+test('an isolated monster test preserves the original adventure', async t => {
+  const { service, id } = fixture(t, new Mock([]));
+  const { sequence: _beforeCursor, ...before } = service.state(id);
+  const isolated = await service.testBattle(id, 'drowner');
+  // Queue notifications advance the transport cursor without advancing the original adventure.
+  const { sequence: _afterCursor, ...after } = service.state(id);
+  assert.deepEqual(after, before);
+  assert.ok(service.state(isolated.id).battle);
+});
+test('battle handoff contains only battle context', async t => {
   const main = new Mock([[call('start_battle', { monsterId: 'drowner', monsterObjectId: 'enemy', scene: '河畔', facts: [], objectives: [], environment: [], risks: [] })]]);
   const combat = new Mock([[text('水鬼逼近，等待你的行动。')]]);
-  const { service, id, root } = fixture(t, main, combat);
-  const isolated = await service.testBattle(id, 'drowner');
-  assert.equal(service.state(id).battle, null); assert.ok(service.state(isolated.id).battle);
+  const { service, id } = fixture(t, main, combat);
   service.submit(id, 'battle', '迎战水鬼'); await service.idle(id);
-  assert.equal(service.state(id).awaiting, 'player_action');
-  const s = await service.save(id, '战斗中');
-  const before = readFileSync(join(root, 'adventures', id, 'rules.json'), 'utf8');
-  await service.restore(id, s.id);
-  assert.deepEqual(JSON.parse(readFileSync(join(root, 'adventures', id, 'rules.json'), 'utf8')), JSON.parse(before));
   assert.equal(service.state(id).awaiting, 'player_action');
   assert.ok(service.events(id).some(e => e.type === 'battle.handoff'));
   assert.ok(!JSON.stringify(combat.inputs[0]).includes('迎战水鬼'));
+});
+test('a battle snapshot restores earlier public rules after progress and survives reopening', async t => {
+  const main = new Mock([[call('start_battle', { monsterId: 'drowner', monsterObjectId: 'enemy', scene: '河畔', facts: [], objectives: [], environment: [], risks: [] })], [text('战后故事')]]);
+  const combat = new Mock([[text('水鬼逼近，等待你的行动。')], [call('battle_act', { command: { type: 'action', id: 'potion:swallow' } })],
+    [call('battle_act', { command: { type: 'action', id: 'attack:normal' } })], [text('药剂已经喝下')]]);
+  const { service, id, root } = fixture(t, main, combat);
+  service.submit(id, 'battle', '迎战水鬼'); await service.idle(id);
+  const saved = await service.save(id, '战斗中');
+  const before = service.state(id);
+  service.submit(id, 'drink', '喝燕子'); await service.idle(id);
+  assert.ok(service.state(id).rules.revision > before.rules.revision);
+  await service.restore(id, saved.id);
+  assert.deepEqual(service.state(id).rules, before.rules);
+  assert.deepEqual(service.state(id).battle, before.battle);
+  assert.equal(service.state(id).awaiting, 'player_action');
+  await service.close();
+  const reopened = new AdventureService(root, { main: new Mock([]), combat: new Mock([]) });
+  t.after(() => reopened.close());
+  assert.deepEqual(reopened.state(id).rules, before.rules);
+  assert.deepEqual(reopened.state(id).battle, before.battle);
 });
 test('settings change between requests, current request uses original options and style', async t => {
   let release!: (v: StreamChunk[]) => void;
@@ -151,28 +204,82 @@ test('settings change between requests, current request uses original options an
   assert.equal(main.options[1]!.model, 'next-model'); assert.equal(main.options[1]!.maxTokens, 512);
   assert.ok(main.inputs[1]![0]!.content.includes('新风格')); assert.ok(!main.inputs[0]![0]!.content.includes('新风格'));
 });
-test('HTTP API rejects cross-origin writes, streams baseline as history and keeps running after disconnect', async t => {
-  const { service, id } = fixture(t, new Mock([[text('继续')]]));
+test('HTTP story and each SSE reconnect project raw saved memos while retaining console events', async t => {
+  const memo = JSON.stringify({ currentSituation: '地下', necessaryFacts: '石壁', unfinishedActionsAndIntent: '等待选择' });
+  const { service, id } = fixture(t, new Mock([[text(`你要怎么做？\n\n\`\`\`json\n${memo}\n\`\`\``)]]));
+  service.submit(id, 'memo', '继续'); await service.idle(id);
   const server = createWebServer(service, join(import.meta.dirname, '../../Frontend/dist'));
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(() => { server.closeAllConnections(); server.close(); });
-  const base = `http://127.0.0.1:${(server.address() as any).port}`;
-  assert.equal((await fetch(`${base}/api/adventures`, { method: 'POST', headers: { origin: 'https://other.test', 'content-type': 'application/json' }, body: '{"name":"bad"}' })).status, 400);
-  const response = await fetch(`${base}/api/adventures/${id}/events`); const reader = response.body!.getReader();
-  const baseline = new TextDecoder().decode((await reader.read()).value); assert.ok(baseline.includes('"history":true')); await reader.cancel();
-  service.submit(id, 'disconnected', '继续'); await service.idle(id); assert.equal(service.state(id).phase, 'waiting');
+  const base = `http://127.0.0.1:${(server.address() as { port: number }).port}/api/adventures/${id}`;
+  const state = await (await fetch(base + '/state')).json();
+  assert.equal(state.story.at(-1).text, '你要怎么做？');
+  for (let reconnect = 0; reconnect < 2; reconnect++) {
+    const response = await fetch(base + '/events'); const reader = response.body!.getReader();
+    const baseline = new TextDecoder().decode((await reader.read()).value);
+    const payload = JSON.parse(baseline.split('\n').find(line => line.startsWith('data: '))!.slice(6));
+    assert.equal(payload.history, true);
+    assert.equal(payload.state.story.at(-1).text, '你要怎么做？');
+    assert.ok(payload.events.some((e: any) => e.type === 'message.complete' && e.text.includes('currentSituation')));
+    await reader.cancel();
+  }
 });
-test('provider capability mapping isolates reasoning and rejects protected fields', async t => {
+
+test('HTTP API rejects cross-origin writes without creating an adventure', async t => {
+  const { service } = fixture(t, new Mock([]));
+  const base = await webEndpoint(t, service), before = service.list();
+  assert.equal((await fetch(`${base}/api/adventures`, { method: 'POST', headers: { origin: 'https://other.test', 'content-type': 'application/json' }, body: '{"name":"bad"}' })).status, 400);
+  assert.deepEqual(service.list(), before);
+});
+test('SSE marks the initial baseline as history', async t => {
+  const { service, id } = fixture(t, new Mock([]));
+  const base = await webEndpoint(t, service);
+  const response = await fetch(`${base}/api/adventures/${id}/events`); const reader = response.body!.getReader();
+  t.after(() => reader.cancel().catch(() => {}));
+  const baseline = new TextDecoder().decode((await reader.read()).value); assert.ok(baseline.includes('"history":true')); await reader.cancel();
+});
+test('an accepted HTTP operation finishes after its SSE observer disconnects', async t => {
+  let release!: (chunks: StreamChunk[]) => void, started!: () => void;
+  const generating = new Promise<void>(resolve => { started = resolve; });
+  const main = new Mock([() => new Promise(resolve => { release = resolve; started(); })]);
+  const { service, id } = fixture(t, main);
+  const base = await webEndpoint(t, service);
+  const response = await fetch(`${base}/api/adventures/${id}/events`), reader = response.body!.getReader();
+  t.after(() => reader.cancel().catch(() => {}));
+  await reader.read();
+  const submitted = await fetch(`${base}/api/adventures/${id}/turn`, { method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ operationId: 'disconnected', input: '继续' }) });
+  assert.equal(submitted.ok, true);
+  await generating; await reader.cancel();
+  release([text('断线后完成的故事')]); await service.idle(id);
+  assert.equal(service.state(id).phase, 'waiting');
+  assert.equal(service.state(id).story.at(-1)?.text, '断线后完成的故事');
+  assert.equal(service.submit(id, 'disconnected', '重复').status, 'done');
+});
+async function connectionFixture(t: TestContext) {
   const requests: any[] = [];
   const mockServer = createServer(async (req, res) => { let body = ''; for await (const c of req) body += c; requests.push(JSON.parse(body)); res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ choices: [{ message: { content: 'OK' } }], usage: { prompt_tokens: 3, completion_tokens: 1 } })); });
   await new Promise<void>(resolve => mockServer.listen(0, '127.0.0.1', resolve));
   t.after(() => { mockServer.closeAllConnections(); mockServer.close(); });
   const { service } = fixture(t, new Mock([]));
   const config = structuredClone(service.settings.value); config.providers.local!.baseURL = `http://127.0.0.1:${(mockServer.address() as any).port}`; config.providers.local!.reasoning = { field: 'reasoning_effort', values: { low: 'low', high: 'high' } }; config.main.reasoning = 'low'; config.combat.reasoning = 'high'; service.settings.update(config);
+  return { service, requests };
+}
+test('provider capability mapping keeps each Agent reasoning setting independent', async t => {
+  const { service, requests } = await connectionFixture(t);
   await service.settings.test('main'); await service.settings.test('combat');
   assert.equal(requests[0].reasoning_effort, 'low'); assert.equal(requests[1].reasoning_effort, 'high');
+});
+test('connection tests limit output and omit sampling overrides', async t => {
+  const { service, requests } = await connectionFixture(t);
+  await service.settings.test('main');
   assert.equal(requests[0].temperature, undefined); assert.equal(requests[0].top_p, undefined); assert.equal(requests[0].max_tokens, 32);
+});
+test('settings reject protected request fields without changing the saved configuration', t => {
+  const { service } = fixture(t, new Mock([]));
+  const before = service.settings.public(), config = structuredClone(service.settings.value);
   config.providers.local!.requestFields = { messages: [] }; assert.throws(() => service.settings.update(config));
+  assert.deepEqual(service.settings.public(), before);
 });
 
 test('main compression preserves complete story and exposes separate compression requests', async t => {
@@ -250,12 +357,14 @@ test('each compression attempt snapshots the latest model and output limit', asy
   assert.deepEqual(starts.map(e => e.type === 'request.start' ? e.model : undefined), ['local-model', 'next-model']);
 });
 
-test('manual snapshots restore narrative dice sequences and the seed of the next battle across restart', async t => {
+test('manual snapshots restore narrative dice and the next battle roll across restart', async t => {
   const roll = () => [call('narrative_roll', { difficulty: 12 })];
   const battle = () => [call('start_battle', { monsterId: 'drowner', monsterObjectId: 'enemy', scene: '河畔', facts: [], objectives: [], environment: [], risks: [] })];
   const main = new Mock([roll(), [text('第一次判定')], roll(), [text('第二次判定')], battle(),
     roll(), [text('第一次判定')], roll(), [text('第二次判定')], battle()]);
-  const combat = new Mock([[text('等待玩家行动')], [text('等待玩家行动')]]);
+  const attack = () => [call('battle_act', { command: { type: 'action', id: 'sword:normal' } })];
+  const combat = new Mock([[text('等待玩家行动')], attack(), new Error('offline after committed attack'),
+    [text('等待玩家行动')], attack(), new Error('offline after committed attack')]);
   const { service, id, root } = fixture(t, main, combat);
   const saved = await service.save(id, '判定之前');
   const advance = async (current: AdventureService, suffix: string) => {
@@ -265,8 +374,13 @@ test('manual snapshots restore narrative dice sequences and the seed of the next
     const second = current.state(id).rules;
     current.submit(id, `battle-${suffix}`, '迎战'); await current.idle(id);
     assert.equal(current.state(id).phase, 'waiting');
-    const rules = new Rules(join(root, 'adventures', id, 'rules.json'));
-    return { first, second, battle: rules.adventure.battleRecord().state };
+    current.submit(id, `attack-${suffix}`, '普通剑击'); await current.idle(id);
+    assert.equal(current.state(id).phase, 'recovery');
+    const result = current.events(id).filter(e => e.type === 'tool.result' && e.call.name === 'battle_act').at(-1);
+    assert.ok(result?.type === 'tool.result');
+    assert.ok('events' in result.result);
+    // A replay creates a new battle identity; compare its authoritative checks and effects.
+    return { first, second, battle: current.state(id).battle, events: result.result.events };
   };
   const original = await advance(service, 'original');
   await service.restore(id, saved.id); await service.close();

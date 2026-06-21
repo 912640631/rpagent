@@ -93,7 +93,7 @@ test('rejected commands preserve the ledger and terminal reads never settle an a
   f.rejects({ ...act, command: { type: 'action', id: 'sword:normal', useHopeAdvantage: 'yes' } }, 'INVALID_COMMAND');
 });
 
-test('insufficient combat hope cannot commit and pending dying choice survives a restart', async t => {
+test('insufficient combat hope cannot commit', async t => {
   const f = fixture(t);
   const { createAdventureSession } = await import(pathToFileURL(join(root, 'CombatEngine/dist/src/adventure-session.js')));
   const adventure = createAdventureSession(f.state);
@@ -107,9 +107,11 @@ test('insufficient combat hope cannot commit and pending dying choice survives a
     config: { monsterId: 'wolf', seed: 42 } });
   f.rejects({ action: 'act', battleId: state.battle.battleId, expectedRevision: 0,
     command: { type: 'action', id: 'sword:normal', useHopeAdvantage: true } }, 'ILLEGAL_COMMAND');
-
+});
+test('pending dying choice survives a CLI restart', t => {
+  const f = fixture(t);
   const config = { monsterId: 'fiend', seed: 123456, initiative: 'monster', initial: { geralt: { hp: 1, armor: 0 } } };
-  state = f.ok({ action: 'reset' });
+  let state = f.ok({ action: 'reset' });
   state = f.ok({ action: 'startBattle', expectedRevision: state.revision, config });
   state = f.ok({ action: 'act', battleId: state.battle.battleId, expectedRevision: 0,
     command: { type: 'action', id: 'attack:normal' } });
@@ -138,14 +140,23 @@ test('state path precedence and default are independent of working directory', t
   assert.equal(existsSync(join(f.directory, 'NarrativeDice')), false);
 });
 
-test('catalog, malformed requests and missing build return machine-readable responses', t => {
+test('monster catalog returns readable machine-readable descriptions', t => {
   const f = fixture(t);
   const catalog = f.ok({ action: 'monsters' });
   assert.equal(catalog.monsters.length, 24);
   assert(catalog.monsters.every(monster => monster.id && monster.name && monster.description && !monster.description.includes('undefined')));
+});
+test('malformed requests return machine-readable errors without changing the ledger', t => {
+  const f = fixture(t);
   for (const input of ['{', '', '[]', 'null', '4']) f.rejects(input, 'INVALID_COMMAND');
   f.rejects({ action: 'nope' }, 'UNKNOWN_ACTION');
+});
+test('invalid CLI arguments return a machine-readable error', t => {
+  const f = fixture(t);
   assert.equal(f.run({ action: 'status' }, { args: ['--wrong'] }).error.code, 'INVALID_ARGUMENTS');
+});
+test('missing build returns a machine-readable recovery instruction', t => {
+  const f = fixture(t);
   const isolatedCli = join(f.directory, 'cli.js');
   copyFileSync(cli, isolatedCli);
   const missing = f.run({ action: 'status' }, { cli: isolatedCli });

@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { atomicJson } from '../persistence.js';
 import { ChatCompletionsAdapter } from '../adapter.js';
 import { corePrompts } from '../harness.js';
+import { providerModels } from './models.js';
 import type { Adapter, AgentRoute, Config, Provider } from '../types.js';
 
 import { defaultStyles } from './default-prompts.js';
@@ -51,6 +52,10 @@ export class SettingsStore {
     this.value = validateSettings(existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : structuredClone(defaults));
   }
   public() { return this.sanitize(this.value); }
+  async models(id: string) {
+    if (!Object.hasOwn(this.value.providers, id)) throw new Error('Provider 不存在');
+    return this.sanitize(await providerModels(structuredClone(this.value.providers[id]!)));
+  }
   sanitize<T>(value: T): T {
     const secrets = Object.values(this.value.providers).flatMap(p => [p.apiKey, p.apiKeyEnv ? process.env[p.apiKeyEnv] : undefined]).filter((s): s is string => Boolean(s));
     const walk = (v: any): any => {
