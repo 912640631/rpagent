@@ -15,21 +15,22 @@ function monsterTurn(id: string, seed = 1): BattleState {
 test('all 24 monster definitions map to supported mechanic families', () => {
   assert.equal(monsterIds.length, 24);
   assert.doesNotThrow(() => validateCombatData());
-  assert.equal(combatData.actors.water_hag?.traits.wetland_hunter, undefined);
-  assert.equal(combatData.actors.rotfiend?.traits.corpse_explosion.effects[0].effect.target_scope, 'all_other_actors');
+  assert.equal(combatData.actors.water_hag?.traits?.wetland_hunter, undefined);
+  const explosion = combatData.actors.rotfiend?.traits?.corpse_explosion?.effects?.find(effect => effect.type === 'on_death_if_not_status');
+  assert.equal(explosion?.effect.target_scope, 'all_other_actors');
 });
 
 test('every monster attack and action can be submitted and resolved', () => {
   for (const monsterId of monsterIds) {
     const template = combatData.actors[monsterId]!;
-    for (const id of Object.keys(template.attacks)) {
+    for (const id of Object.keys(template.attacks ?? {})) {
       const state = monsterTurn(monsterId);
       state.combatants.geralt.defense = -100;
       const next = advanceBattle(state, { type: 'action', id: `attack:${id}` });
       assert(next.events.some(event => event.type === 'check'), `${monsterId}/${id} has no check`);
       assert(next.events.some(event => event.type === 'action_started' && event.details.id === `attack:${id}`));
     }
-    for (const id of Object.keys(template.actions)) {
+    for (const id of Object.keys(template.actions ?? {})) {
       const state = monsterTurn(monsterId);
       state.combatants.geralt.defense = -100;
       const next = advanceBattle(state, { type: 'action', id: `action:${id}` });
@@ -41,7 +42,7 @@ test('every monster attack and action can be submitted and resolved', () => {
 test('every targetable monster part can resolve a hit and each trauma stage', () => {
   for (const monsterId of monsterIds) {
     const parts = combatData.actors[monsterId]!.parts;
-    for (const [partId, part] of Object.entries<{ trauma_track?: boolean }>(parts)) {
+    for (const [partId, part] of Object.entries<{ trauma_track?: boolean }>(parts ?? {})) {
       const state = createBattle(monsterId, 23);
       state.combatants.monster.defense = -100;
       const hit = advanceBattle(state, { type: 'action', id: 'sword:normal', part: partId });
@@ -383,10 +384,10 @@ test('fear empowerment spends each point once and modifies the attack check', ()
 
 test('unknown mechanics are rejected by the data validator', () => {
   const bad = structuredClone(combatData);
-  bad.actors.wolf!.attacks.normal.on_hit = [{ type: 'silently_do_magic' }];
+  Reflect.set(bad.actors.wolf!.attacks!.normal!, 'on_hit', [{ type: 'silently_do_magic' }]);
   assert.throws(() => validateCombatData(bad), /Unsupported effect/);
   const badFamily = structuredClone(combatData);
-  badFamily.global.statuses.bleeding.family = 'never_expires';
+  Reflect.set(badFamily.global.statuses.bleeding!, 'family', 'never_expires');
   assert.throws(() => validateCombatData(badFamily), /Invalid persistent damage status/);
 });
 

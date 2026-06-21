@@ -20,7 +20,7 @@ export function executeAdventureCommand(input: unknown, storagePath: string): un
     case 'monsters': return {
       monsters: monsterIds.map(id => {
         const actor = combatData.actors[id]!;
-        const moves = Object.values(actor.attacks ?? {}).concat(Object.values(actor.actions ?? {})) as { name_zh: string }[];
+        const moves = [...Object.values(actor.attacks ?? {}), ...Object.values(actor.actions ?? {})] as { name_zh: string }[];
         return { id, name: actor.name_zh, description:
           `类型：${actor.monster_type}；难度：${actor.difficulty}；招式：${moves.map(move => move.name_zh).join('、')}` };
       })

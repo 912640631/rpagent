@@ -6,62 +6,17 @@ import { api } from './api.ts';
 import { useAdventure } from './use-adventure.ts';
 import { ReadingControls, useReadingPreferences } from './reading.tsx';
 import { SavePanel } from './save-panel.tsx';
-import { ModelDirectories } from './model-directory.ts';
-import { ModelPicker } from './model-picker.tsx';
+import { Settings } from './settings.tsx';
 import type { CSSProperties } from 'react';
-import type { Settings, WebProvider, WebRoute } from '../../RpgAgent/src/web/settings.js';
-import type { AdventureState, AgentRole, CharacterCard, ConnectionTest, RunAction, SettingsResponse } from './types.ts';
+import type { AdventureState, CharacterCard, RunAction } from './types.ts';
 import './style.css';
 
-type BudgetKey = 'maxOutputTokens' | 'recentTokens' | 'battleResultTokens' | 'compressionThreshold';
 const pretty = (value: unknown): string => JSON.stringify(value, null, 2) ?? '';
 const roles: Record<string, string> = { main: '主 Agent', combat: '战斗子 Agent' };
 const agentName = (role?: string) => roles[role ?? ''] ?? '主持人';
 const characterFields = [['hp', 'maxHp', 'HP'], ['armor', 'maxArmor', '护甲'], ['signPoints', 'maxSignPoints', '法印点'], ['toxicity', 'maxToxicity', '毒性']] as const;
 const potionNames: Record<string, string> = { thunderbolt: '雷霆', swallow: '燕子', golden_oriole: '金莺', tawny_owl: '猫头鹰' };
 function Json({ value }: { value: unknown }) { return <pre>{pretty(value)}</pre>; }
-function Settings({ onClose, run, error }: { onClose: () => void; run: RunAction; error: string }) {
-  const [data, setData] = useState<SettingsResponse | null>(null), [draft, setDraft] = useState<Settings | null>(null), [providers, setProviders] = useState(''), [message, setMessage] = useState('');
-  const [, redrawModels] = useState(0);
-  const directories = useRef<ModelDirectories | null>(null);
-  useEffect(() => {
-    if (!data) return;
-    const catalog = new ModelDirectories(id => api(`/providers/${encodeURIComponent(id)}/models`), () => redrawModels(n => n + 1));
-    directories.current = catalog;
-    for (const id of Object.keys(data.value.providers)) void catalog.load(id);
-    return () => { catalog.dispose(); if (directories.current === catalog) directories.current = null; };
-  }, [data]);
-  useEffect(() => { run(async () => { const d = await api<SettingsResponse>('/settings'); setData(d); setDraft(d.value); setProviders(pretty(d.value.providers)); }); }, [run]);
-  if (!draft || !data) return <div className="modal"><section>读取设置…<button onClick={onClose}>关闭</button></section></div>;
-  const route = <K extends keyof WebRoute,>(role: AgentRole, key: K, value: WebRoute[K]) => setDraft(d => d ? ({ ...d, [role]: { ...d[role], [key]: value } }) : d);
-  const save = () => run(async () => { const value = await api<Settings>('/settings', { ...draft, providers: JSON.parse(providers) }); setDraft(value); setProviders(pretty(value.providers)); setData(await api<SettingsResponse>('/settings')); setMessage('已保存 · 从下一次模型请求生效'); });
-  let connections: Record<string, WebProvider> | null; try { connections = JSON.parse(providers) as Record<string, WebProvider>; } catch { connections = null; }
-  const connection = <K extends keyof WebProvider,>(id: string, key: K, value: WebProvider[K]) => setProviders(pretty({ ...connections, [id]: { ...connections?.[id], [key]: value } }));
-  const unsaved = (id: string) => {
-    const current = connections?.[id], saved = data.value.providers[id];
-    return !current || !saved || current.baseURL !== saved.baseURL || current.apiKeyEnv !== saved.apiKeyEnv || current.apiKey !== saved.apiKey;
-  };
-  const picker = (id: string, label: string, value: string, onChange: (value: string) => void, defaultModel?: string) =>
-    <ModelPicker key={`${label}:${id}`} label={label} value={value} defaultModel={defaultModel} directory={directories.current?.get(id)} unsaved={unsaved(id)} onChange={onChange} onRefresh={() => { void directories.current?.load(id, true); }}/>;
-  return <div className="modal" role="dialog" aria-modal="true" aria-label="模型与阅读设置"><section><header><h2>模型与提示词</h2><button onClick={onClose}>关闭</button></header>{error && <p className="banner error" role="alert">{error}</p>}<p>两个 Agent 独立配置。保存后从下一请求生效，当前请求保持原配置。</p>
-    <details><summary>连接管理 · API 地址与凭据</summary>{connections && Object.entries(connections).map(([id, p]) => <fieldset key={id}><legend>{id}</legend><label>API 地址<input value={p.baseURL || ''} onChange={e => connection(id, 'baseURL', e.target.value)}/></label>{picker(id, `${id}默认模型`, p.defaultModel || '', value => connection(id, 'defaultModel', value))}<label>API Key 环境变量<input value={p.apiKeyEnv || ''} onChange={e => connection(id, 'apiKeyEnv', e.target.value || undefined)}/></label><label>API Key（仅本地保存）<input type="password" autoComplete="off" placeholder="不填写则保留；优先使用环境变量" value={p.apiKey || ''} onChange={e => connection(id, 'apiKey', e.target.value)}/></label><button onClick={() => connection(id, 'apiKey', '')}>清除已保存密钥</button></fieldset>)}<button onClick={() => { const key = `provider-${Object.keys(connections || {}).length + 1}`; setProviders(pretty({ ...connections, [key]: { ...data.defaults.providers.local } })); }}>添加 Provider</button></details>
-    <div className="settings-agents">{(['main', 'combat'] as const).map(role => <fieldset key={role}><legend>{roles[role]}</legend>
-      <label>Provider<select value={draft[role].provider} onChange={e => { route(role, 'provider', e.target.value); route(role, 'reasoning', ''); void directories.current?.load(e.target.value); }}>{Object.keys(connections || draft.providers).map(id => <option key={id}>{id}</option>)}</select></label>
-      {picker(draft[role].provider, `${roles[role]}模型`, draft[role].model || '', value => route(role, 'model', value || undefined), connections?.[draft[role].provider]?.defaultModel)}
-      <label>推理强度<select value={draft[role].reasoning || ''} onChange={e => route(role, 'reasoning', e.target.value)}><option value="">服务默认</option>{Object.keys(draft.providers[draft[role].provider]?.reasoning?.values || {}).map(v => <option key={v}>{v}</option>)}</select></label>
-      <label>上下文容量<input type="number" min="4096" value={draft[role].contextTokens} onChange={e => route(role, 'contextTokens', +e.target.value)}/></label>
-      <label>风格指令<textarea value={draft[role].style} onChange={e => route(role, 'style', e.target.value)}/></label>
-      <button onClick={() => route(role, 'style', data.prompts.defaults[role])}>恢复默认风格</button> <button onClick={() => run(async () => { setMessage('测试已保存的连接…'); const result = await api<ConnectionTest>('/connection-test', { agent: role }); setMessage(`${roles[role]}连接成功 · ${result.elapsedMs} ms`); })}>测试已保存连接</button>
-      <details><summary>当前有效提示词</summary><pre>{data.prompts.effective[role]}</pre></details>
-    </fieldset>)}</div>
-    <details><summary>高级设置 · Provider、预算与压缩</summary><p>Provider JSON 支持添加连接、apiKey 或 apiKeyEnv、stream、requestFields。密钥留空不返回浏览器；省略保留原密钥，设置空字符串清除。推理能力由服务支持的字段与选项映射声明，例如 reasoning: {`{"field":"reasoning_effort","values":{"low":"low","high":"high"}}`}。先保存 Provider 后即可在上方选择。</p>
-      <label>Provider 配置<textarea className="json-editor" spellCheck="false" value={providers} onChange={e => setProviders(e.target.value)}/></label>
-      {(Object.entries({ maxOutputTokens: '单次最大输出 token', recentTokens: '近期内容保留预算', battleResultTokens: '战斗结果预算', compressionThreshold: '主 Agent 压缩触发比例' }) as [BudgetKey, string][]).map(([key, label]) => <label key={key}>{label}（默认 {data.defaults[key]}）<input type="number" step={key === 'compressionThreshold' ? '0.05' : '1'} value={draft[key]} onChange={e => setDraft(d => d ? ({ ...d, [key]: +e.target.value }) : d)}/></label>)}
-      <p>战斗子 Agent 不压缩；工具循环 48 步；单请求超时 120 秒。不启用 temperature / top_p。</p>
-      <details><summary>已保存有效值（无密钥）</summary><Json value={data.value}/></details>
-    </details><footer><span role="status">{message}</span><button className="primary" onClick={save}>保存设置</button></footer>
-  </section></div>;
-}
 function Character({ state }: { state: AdventureState }) {
   const c: CharacterCard | null | undefined = state.character || state.rules.character;
   return <><h2>杰洛特</h2><p className="muted">利维亚的猎魔人</p><div className="resources"><span>☀ 希望 <b>{state.rules.resources.hope}</b></span><span>☾ 绝望 <b>{state.rules.resources.fear}</b></span></div>

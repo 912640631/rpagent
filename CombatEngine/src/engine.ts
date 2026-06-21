@@ -1,5 +1,6 @@
+import { assertNever, type ActionEffect, type ActorRule, type PartEffect, type TraitEffect } from './rule-types.js';
 import { actionId, actionRules, findActionRule, requireActionRule } from './action-rules.js';
-import { combatData, dataRevision, monsterIds, type Rule, validateCombatData } from './data.js';
+import { combatData, dataRevision, monsterIds, validateCombatData } from './data.js';
 import { baseDie, rollFormula } from './dice.js';
 import type {
   ActionCommand, ActionOption, Advantage, BattleConfig, BattleState, BattleView, Combatant,
@@ -8,14 +9,15 @@ import type {
 
 const ranks: DamageRank[] = ['none', 'light', 'heavy', 'severe'];
 const other = (side: Side): Side => side === 'geralt' ? 'monster' : 'geralt';
-const asRecord = (value: unknown): Rule => (value && typeof value === 'object' ? value as Rule : {});
-const asEffects = (value: unknown): Rule[] => Array.isArray(value) ? value as Rule[] : [];
+const asEffects = <T>(value: T[] | undefined | null): T[] => value ?? [];
 const statusModifier = (status: string, scope: string): number =>
   asEffects(combatData.global.statuses[status]?.modifiers)
     .filter(modifier => modifier.scope === scope).reduce((sum, modifier) => sum + modifier.value, 0);
-const signModifier = (sign: string, stat: string): number =>
-  asEffects(combatData.global.signs[sign]?.modifiers)
-    .filter(modifier => modifier.stat === stat).reduce((sum, modifier) => sum + modifier.value, 0);
+const signModifier = (sign: string, stat: string): number => {
+  const found = findActionRule({ monsterId: '' }, actionId('sign', sign));
+  return found?.category === 'sign' && found.key === 'yrden'
+    ? found.rule.modifiers.filter(modifier => modifier.stat === stat).reduce((sum, modifier) => sum + modifier.value, 0) : 0;
+};
 
 function templateToCombatant(id: string): Combatant {
   const actor = combatData.actors[id];
@@ -27,7 +29,7 @@ function templateToCombatant(id: string): Combatant {
     else statuses[item.id] = item.stacks ?? 1;
   }
   const trauma: Record<string, number> = {};
-  for (const [partId, part] of Object.entries<Rule>(actor.parts ?? {})) {
+  for (const [partId, part] of Object.entries(actor.parts ?? {})) {
     if (part.trauma_track) trauma[partId] = actor.parts_initial_trauma?.[partId] ?? actor.parts_initial_trauma?.all_trauma_track_parts ?? 0;
   }
   return {
@@ -111,14 +113,14 @@ export function createBattle(input: string | BattleConfig, seed = 1, maxActions 
   return state;
 }
 
-function actorTemplate(state: BattleState, side: Side): Rule {
+function actorTemplate(state: BattleState, side: Side): ActorRule {
   return combatData.actors[side === 'geralt' ? 'geralt' : state.monsterId]!;
 }
 
-function partEffects(state: BattleState, side: Side): Rule[] {
+function partEffects(state: BattleState, side: Side): (PartEffect & { partId: string })[] {
   const actor = state.combatants[side];
   const parts = actorTemplate(state, side).parts ?? {};
-  const result: Rule[] = [];
+  const result: (PartEffect & { partId: string })[] = [];
   for (const [partId, level] of Object.entries(actor.trauma)) {
     const definition = parts[partId];
     if (!definition) continue;
@@ -129,10 +131,10 @@ function partEffects(state: BattleState, side: Side): Rule[] {
   return result;
 }
 
-function traitEffects(state: BattleState, side: Side): Rule[] {
+function traitEffects(state: BattleState, side: Side): TraitEffect[] {
   const template = actorTemplate(state, side);
   const hasYrden = state.combatants[side].effects.some(effect => effect.kind === 'yrden');
-  return Object.values<Rule>(template.traits ?? {}).flatMap(trait => {
+  return Object.values(template.traits ?? {}).flatMap(trait => {
     if (trait.while_affected_by && !(trait.while_affected_by === 'yrden' && hasYrden)) return [];
     return asEffects(trait.effects);
   });
@@ -159,14 +161,14 @@ export function getOptions(state: BattleState): ActionOption[] {
   if (side === 'geralt') {
     const result: ActionOption[] = [];
     const sword = actionRules(state, 'sword');
-    for (const [id, attack] of Object.entries<Rule>(sword)) {
+    for (const [id, attack] of Object.entries(sword)) {
       result.push({ id: actionId('sword', id), name: attack.name_zh, actor: side, kind: 'attack',
         targetParts: Object.keys(actorTemplate(state, 'monster').parts ?? {}) });
     }
-    for (const [id, sign] of Object.entries<Rule>(actionRules(state, 'sign'))) {
+    for (const [id, sign] of Object.entries(actionRules(state, 'sign'))) {
       if (actor.signPoints < (sign.cost?.sign_points ?? 0)) continue;
       const option: ActionOption = { id: actionId('sign', id), name: sign.name_zh, actor: side, kind: 'sign', cost: sign.cost };
-      if (id === 'aard') option.choices = sign.on_success.choices.map((choice: Rule) => choice.id);
+      if ('on_success' in sign && !Array.isArray(sign.on_success)) option.choices = sign.on_success.choices.map(choice => choice.id);
       result.push(option);
     }
     for (const id of actor.potions) {
@@ -181,7 +183,7 @@ export function getOptions(state: BattleState): ActionOption[] {
   }
   const template = actorTemplate(state, side);
   const result: ActionOption[] = [];
-  for (const [id, attack] of Object.entries<Rule>(actionRules(state, 'attack'))) {
+  for (const [id, attack] of Object.entries(actionRules(state, 'attack'))) {
     if (actor.hp <= 0 || actionDisabled(state, side, id, attack.tags ?? [])) continue;
     if (state.fear < (attack.cost?.fear ?? 0)) continue;
     result.push({ id: actionId('attack', id), name: attack.name_zh, actor: side, kind: 'attack', cost: attack.cost,
@@ -189,7 +191,7 @@ export function getOptions(state: BattleState): ActionOption[] {
       canEmpowerDamage: Boolean(attack.damage) && !actor.statuses.hesitant &&
         state.fear >= (attack.cost?.fear ?? 0) + combatData.global.fear.generic_empowerments.empower_damage.cost.fear });
   }
-  for (const [id, action] of Object.entries<Rule>(actionRules(state, 'action'))) {
+  for (const [id, action] of Object.entries(actionRules(state, 'action'))) {
     if (actor.hp <= 0 || actionDisabled(state, side, id, action.tags ?? [])) continue;
     if (state.fear < (action.cost?.fear ?? 0)) continue;
     result.push({ id: actionId('action', id), name: action.name_zh, actor: side, kind: 'action', cost: action.cost });
@@ -238,15 +240,14 @@ class Resolver {
     if (actor.maxToxicity > 0 && actor.toxicity === actor.maxToxicity) value += combatData.global.toxicity.saturation_defense_modifier;
     if (actor.statuses.poisoned) value += statusModifier('poisoned', 'defense');
     if (actor.effects.some(effect => effect.kind === 'yrden')) value += signModifier('yrden', 'defense');
-    value += actor.effects.filter(effect => effect.kind === 'stat' && effect.stat === 'defense')
-      .reduce((sum, effect) => sum + (effect.value ?? 0), 0);
+    for (const effect of actor.effects) if (effect.kind === 'stat' && effect.stat === 'defense') value += effect.value;
     const suppressTags = new Set(traitEffects(this.state, side)
       .filter(effect => effect.type === 'suppress_tagged_trait_effect').map(effect => effect.tag));
     for (const effect of traitEffects(this.state, side)) {
-      if (effect.type === 'modifier' && effect.stat === 'defense' && !suppressTags.has(effect.tag)) value += effect.value;
+      if (effect.type === 'modifier' && effect.stat === 'defense' && !(effect.tag && suppressTags.has(effect.tag))) value += effect.value;
       if (effect.type === 'vs_sign_defense_modifier' && effect.sign === signId) value += effect.value;
       if (effect.type === 'while_tag_disabled' && disabledTag(this.state, side, effect.tag)) {
-        value += asEffects(effect.modifiers).filter(mod => mod.stat === 'defense').reduce((sum, mod) => sum + mod.value, 0);
+        value += effect.modifiers.filter(mod => mod.stat === 'defense').reduce((sum, mod) => sum + mod.value, 0);
       }
     }
     return value;
@@ -262,15 +263,14 @@ class Resolver {
       if (isAttack && effect.type === 'conditional_modifier' && effect.stat === 'attack_check' &&
         effect.condition === 'hp_at_or_below_half' && actor.hp * 2 <= actor.maxHp) value += effect.value;
       if (isAttack && effect.type === 'while_tag_disabled' && disabledTag(this.state, side, effect.tag)) {
-        value += asEffects(effect.modifiers).filter(mod => mod.stat === 'attack_check').reduce((sum, mod) => sum + mod.value, 0);
+        value += effect.modifiers.filter(mod => mod.stat === 'attack_check').reduce((sum, mod) => sum + mod.value, 0);
       }
       // Ally conditions have zero qualifying allies in the current duel state.
       if (['conditional_check_modifier', 'conditional_check_modifier_die', 'allied_trait_modifier', 'allied_monster_modifier']
         .includes(effect.type)) continue;
     }
     for (const effect of partEffects(this.state, side)) {
-      if (tags.includes(effect.tag) &&
-        (effect.type === 'tagged_action_modifier_die' || (isAttack && effect.type === 'tagged_attack_modifier_die'))) {
+      if ((effect.type === 'tagged_action_modifier_die' || (isAttack && effect.type === 'tagged_attack_modifier_die')) && tags.includes(effect.tag)) {
         value += rollFormula(this.state, effect.value);
       }
     }
@@ -301,13 +301,13 @@ class Resolver {
       actor.nextAttackDice = [];
     }
     if (options.hostile && this.state.combatants[other(side)].statuses.unbalanced) {
-      modifier += rollFormula(this.state, combatData.global.statuses.unbalanced.on_incoming_hostile_check[0].value);
+      modifier += rollFormula(this.state, combatData.global.statuses.unbalanced!.on_incoming_hostile_check!.find(effect => effect.type === 'attacker_check_modifier_die')!.value);
       this.consumeStatus(other(side), 'unbalanced', 1);
     }
     if (options.hostile && side === 'geralt') {
       const bonus = actor.effects.find(effect => effect.kind === 'axii_bonus' && effect.target === other(side));
       if (bonus) {
-        modifier += rollFormula(this.state, combatData.global.signs.axii.on_critical[0].modifier_die);
+        modifier += rollFormula(this.state, combatData.global.signs.axii.on_critical.find(effect => effect.type === 'grant_temporary_check_modifier')!.modifier_die);
         bonus.uses = (bonus.uses ?? 1) - 1;
         if (bonus.uses <= 0) actor.effects = actor.effects.filter(effect => effect !== bonus);
       }
@@ -371,7 +371,7 @@ class Resolver {
   private immuneTo(side: Side, status: string): boolean {
     const actor = this.state.combatants[side];
     if (actor.effects.some(effect => effect.kind === 'immunity' && effect.status === status)) return true;
-    return Object.values<Rule>(actorTemplate(this.state, side).traits ?? {})
+    return Object.values(actorTemplate(this.state, side).traits ?? {})
       .some(trait => (trait.immunities ?? []).includes(status));
   }
 
@@ -397,7 +397,7 @@ class Resolver {
     this.emit('effect_applied', { effect }, appliedBy, side);
   }
 
-  private applyEffects(effects: Rule[], actorSide: Side, defaultTarget: Side): void {
+  private applyEffects(effects: ActionEffect[], actorSide: Side, defaultTarget: Side): void {
     for (const effect of effects) {
       const selfByDefault = ['heal_hp', 'grant_temporary_stat_modifier', 'grant_counter_effect',
         'grant_immunity', 'restore_resource'].includes(effect.type);
@@ -451,7 +451,7 @@ class Resolver {
         case 'reduce_damage_rank':
         case 'remove_self':
           throw new Error(`${effect.type} must be applied during damage resolution`);
-        default: throw new Error(`Unsupported action effect: ${effect.type}`);
+        default: assertNever(effect);
       }
     }
   }
@@ -514,7 +514,7 @@ class Resolver {
       ? this.shiftRank(rank, -combatData.global.armor.reduce_rank_steps) : rank;
     const quen = targetActor.effects.find(effect => effect.kind === 'quen');
     if (quen && combatData.global.damage_rank.hp_loss[rankWithoutQuen] > 0) {
-      rank = this.shiftRank(rank, -combatData.global.signs.quen.on_trigger.find((effect: Rule) => effect.type === 'reduce_damage_rank').steps);
+      rank = this.shiftRank(rank, -combatData.global.signs.quen.on_trigger.find(effect => effect.type === 'reduce_damage_rank')!.steps);
       targetActor.effects = targetActor.effects.filter(effect => effect !== quen);
       this.emit('quen_triggered', { rank }, target);
     }
@@ -536,7 +536,7 @@ class Resolver {
     for (const effect of traitEffects(this.state, 'monster')) {
       if (effect.type !== 'on_hit_by_sign' || effect.sign !== sign) continue;
       const nested = effect.effects ?? (effect.effect ? [effect.effect] : []);
-      for (const entry of nested as Rule[]) {
+      for (const entry of nested) {
         if (entry.type === 'clear_status') {
           delete this.state.combatants.monster.statuses[entry.status];
           this.emit('status_cleared', { status: entry.status }, 'geralt', 'monster');
@@ -544,7 +544,7 @@ class Resolver {
           this.timedEffect('monster', { kind: 'disabled_tag', tag: entry.tag, remaining: 1 }, 'geralt');
         } else if (entry.type === 'temporarily_disable_action') {
           this.timedEffect('monster', { kind: 'disabled_action', action: entry.action, remaining: 1 }, 'geralt');
-        } else throw new Error(`Unsupported sign hit trait: ${entry.type}`);
+        } else assertNever(entry);
       }
     }
   }
@@ -613,9 +613,9 @@ class Resolver {
       if (baseCost + empowermentCost) this.emit('fear_spent', { amount: baseCost + empowermentCost, remaining: this.state.fear }, side);
     } else if (empowermentCost) throw new Error('Geralt cannot use fear empowerment');
     let fixedModifier = (attack.attack_modifier ?? 0) + (side === 'monster' ? actorTemplate(this.state, side).stats.base_attack_modifier ?? 0 : 0);
-    if (command.part) fixedModifier += actorTemplate(this.state, target).parts[command.part].attack_modifier;
+    if (command.part) fixedModifier += actorTemplate(this.state, target).parts![command.part]!.attack_modifier;
     if (command.empowerHit) fixedModifier += rollFormula(this.state,
-      combatData.global.fear.generic_empowerments.empower_hit.effects[0].value);
+      combatData.global.fear.generic_empowerments.empower_hit.effects[0]!.value);
     const thunderboltActive = side === 'geralt' && this.state.combatants.geralt.thunderboltUses > 0;
     if (thunderboltActive) {
       this.state.combatants.geralt.thunderboltUses -= 1;
@@ -629,7 +629,7 @@ class Resolver {
     if (result.success) {
       if (attack.damage) {
         let extraDie: string | undefined;
-        if (command.empowerDamage) extraDie = Array(combatData.global.fear.generic_empowerments.empower_damage.effects[0].count)
+        if (command.empowerDamage) extraDie = Array(combatData.global.fear.generic_empowerments.empower_damage.effects[0]!.count)
           .fill(baseDie(attack.damage)).join('+');
         if (thunderboltActive) {
           // The Thunderbolt counter is consumed on the check and adds damage only on a hit.
@@ -640,7 +640,7 @@ class Resolver {
       }
       this.applyEffects(asEffects(attack.on_hit), side, target);
       if (retaliatesOnHit) {
-        const amount = combatData.global.statuses.spined.on_incoming_melee_hit[0].amount;
+        const amount = combatData.global.statuses.spined!.on_incoming_melee_hit!.find(effect => effect.type === 'direct_hp_loss_to_attacker')!.amount;
         this.state.combatants.geralt.hp = Math.max(0, this.state.combatants.geralt.hp - amount);
         this.emit('retaliation', { status: 'spined', hpLoss: amount }, 'monster', 'geralt');
       }
@@ -658,14 +658,14 @@ class Resolver {
     actor.signPoints -= sign.cost.sign_points;
     this.emit('resource_spent', { resource: 'sign_points', amount: sign.cost.sign_points, remaining: actor.signPoints }, 'geralt');
     const hostile = sign.check.type === 'player_hostile';
-    const targetValue = hostile ? this.defense('monster', signId) : sign.check.difficulty;
+    const targetValue = sign.check.type === 'player_hostile' ? this.defense('monster', signId) : sign.check.difficulty;
     const result = this.check('geralt', targetValue, { attack: Boolean(sign.is_attack), hostile,
       advantage: sign.is_attack ? command.advantage ?? 'none' : 'none', useHopeAdvantage: command.useHopeAdvantage });
     const initiativeAfter: Side = result.success && (result.critical || result.withHope) ? 'geralt' : 'monster';
     if (result.success) {
       if (signId === 'aard') {
-        const choice = sign.on_success.choices.find((item: Rule) => item.id === command.choice);
-        const selected = result.critical ? sign.on_success.choices.flatMap((item: Rule) => item.effects) : choice.effects;
+        const choice = sign.on_success.choices.find(item => item.id === command.choice)!;
+        const selected = result.critical ? sign.on_success.choices.flatMap(item => item.effects) : choice.effects;
         this.applyEffects(selected, 'geralt', 'monster');
       } else if (signId === 'igni') {
         const extraRank = result.critical ? asEffects(sign.on_critical)
@@ -693,7 +693,7 @@ class Resolver {
           this.applyEffects(asEffects(sign.on_success), 'geralt', 'monster');
           if (result.critical) this.applyEffects(asEffects(sign.on_critical), 'geralt', 'monster');
         } else this.emit('sign_immune', { sign: signId }, 'monster');
-      }
+      } else assertNever(signId);
       this.applySignHitTraits(signId);
     }
     this.resolveZero('geralt', initiativeAfter, 'finish_action');
@@ -727,7 +727,7 @@ class Resolver {
       this.emit('persistent_damage', { status, hpLoss: amount, hp: actor.hp }, side);
       if (side === 'monster' && hpBefore > 0 && actor.hp === 0) deathStatuses = { ...actor.statuses };
     };
-    for (const [status, definition] of Object.entries<Rule>(combatData.global.statuses)) {
+    for (const [status, definition] of Object.entries(combatData.global.statuses)) {
       if (!actor.statuses[status]) continue;
       if (definition.family === 'persistent_damage') {
         applyPersistentDamage(status, definition.damage_per_action);
@@ -759,7 +759,7 @@ class Resolver {
     }
     const expired = actor.effects.filter(effect => effect.remaining !== undefined && effect.remaining <= 0);
     actor.effects = actor.effects.filter(effect => !expired.includes(effect));
-    for (const effect of expired) this.emit('effect_expired', { kind: effect.kind, tag: effect.tag, action: effect.action }, side);
+    for (const effect of expired) this.emit('effect_expired', { kind: effect.kind, tag: effect.kind === 'disabled_tag' ? effect.tag : undefined, action: effect.kind === 'disabled_action' ? effect.action : undefined }, side);
   }
 
   private finishAction(side: Side, initiativeAfter: Side): void {
@@ -820,7 +820,7 @@ class Resolver {
     if (this.state.outcome || this.state.pending) return;
     if (result.bonus && side === 'geralt') {
       const options = ['skip', ...this.state.combatants.geralt.potions
-        .filter(id => this.state.combatants.geralt.toxicity + combatData.global.potions[id].toxicity <= this.state.combatants.geralt.maxToxicity)
+        .filter(id => this.state.combatants.geralt.toxicity + combatData.global.potions[id]!.toxicity <= this.state.combatants.geralt.maxToxicity)
         .map(id => `potion:${id}`)];
       this.state.pending = { kind: 'bonus_action', options, resume: 'finish_action', actingSide: side,
         initiativeAfter: result.initiativeAfter };

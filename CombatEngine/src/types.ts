@@ -3,19 +3,18 @@ export type Advantage = 'none' | 'advantage' | 'disadvantage';
 export type DamageRank = 'none' | 'light' | 'heavy' | 'severe';
 export type Outcome = 'geralt_won' | 'geralt_incapacitated' | 'geralt_dead' | 'monster_escaped' | 'action_limit';
 
-export interface TimedEffect {
-  kind: 'stat' | 'immunity' | 'yrden' | 'quen' | 'disabled_tag' | 'disabled_action' | 'axii_bonus';
-  stat?: string;
-  value?: number;
-  status?: string;
-  tag?: string;
-  action?: string;
-  target?: Side;
-  remaining?: number;
-  uses?: number;
-  startAfterCompleted?: number;
-  untilNextAttack?: boolean;
+interface EffectLifetime {
+  remaining?: number; uses?: number; startAfterCompleted?: number; untilNextAttack?: boolean;
 }
+export type TimedEffect = EffectLifetime & (
+  | { kind: 'stat'; stat: import('./rule-types.js').Stat; value: number }
+  | { kind: 'immunity'; status: import('./rule-types.js').StatusId }
+  | { kind: 'yrden' }
+  | { kind: 'quen' }
+  | { kind: 'disabled_tag'; tag: string }
+  | { kind: 'disabled_action'; action: string }
+  | { kind: 'axii_bonus'; target: Side; uses: number }
+);
 
 export interface Combatant {
   id: string;

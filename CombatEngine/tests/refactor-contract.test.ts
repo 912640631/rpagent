@@ -45,6 +45,7 @@ test('all option identifiers resolve through the shared rule mapping and retain 
       assert.equal(makeSessionView(state).options.find(item => item.id === option.id)?.name, option.name);
     }
   }
+  assert.equal(findActionRule({ monsterId: 'wolf' }, 'sword:toString'), undefined);
   for (const id of ['normal', 'sword:', 'sword:normal:extra', 'unknown:a']) assert.equal(parseActionId(id), undefined);
 });
 test('complete battle results match the pre-refactor baseline for every monster and seed', () => {

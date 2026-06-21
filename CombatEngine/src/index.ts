@@ -1,4 +1,4 @@
-export { combatData, dataRevision, monsterIds, validateCombatData } from './data.js';
+export { combatData, dataRevision, monsterIds, validateCombatData, parseCombatData } from './data.js';
 export { createBattle, getOptions, getBattleView, advanceBattle } from './engine.js';
 export { chooseTestCommand, simulateBattle } from './policy.js';
 export { createCombatSession, defaultSessionPath } from './session.js';
@@ -17,3 +17,4 @@ export type {
 export { commandSchema, validCommand } from './command.js';
 export { actionId, parseActionId, actionRules, findActionRule } from './action-rules.js';
 export type { ActionCategory, ActionIdentifier, ActionRule } from './action-rules.js';
+export type { ActionEffect, TraitEffect, PartEffect, CombatData, AttackRule, MonsterActionRule, SignRule, PotionRule } from './rule-types.js';

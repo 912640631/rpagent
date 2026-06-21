@@ -1,5 +1,6 @@
+import { assertNever, type ActionEffect } from './rule-types.js';
 import { findActionRule } from './action-rules.js';
-import { combatData, type Rule } from './data.js';
+import { combatData } from './data.js';
 import { getOptions } from './engine.js';
 import type { ActionOption, BattleState, Combatant, Outcome, PendingDecision, Side, TimedEffect } from './types.js';
 
@@ -72,7 +73,7 @@ function combatantSummary(actor: Combatant): CombatantSummary {
 
 const statusName = (id: string): string => combatData.global.statuses[id]?.name_zh ?? id;
 
-function effectDescription(effect: Rule): string {
+function effectDescription(effect: ActionEffect): string {
   switch (effect.type) {
     case 'apply_status': return `施加${statusName(effect.status)}${effect.stacks ?? 1}层`;
     case 'clear_status': return `清除${statusName(effect.status)}`;
@@ -88,49 +89,46 @@ function effectDescription(effect: Rule): string {
     case 'increase_damage_rank': return `伤害等级提高${effect.steps}级`;
     case 'reduce_damage_rank': return `伤害等级降低${effect.steps}级`;
     case 'remove_self': return '移除本效果';
-    default: return `效果：${String(effect.type)}`;
+    default: return assertNever(effect);
   }
 }
 
-function effectsDescription(effects: unknown): string[] {
-  return Array.isArray(effects) ? effects.map(effect => effectDescription(effect as Rule)) : [];
+function effectsDescription(effects: ActionEffect[] | undefined, prefix = ''): string[] {
+  return (effects ?? []).map(effect => `${prefix}${effectDescription(effect)}`);
 }
-
-function damageDescription(damage: unknown): string[] {
-  if (typeof damage === 'string') return [`伤害${damage}`];
-  if (damage && typeof damage === 'object' && typeof (damage as Rule).formula === 'string') {
-    return [`伤害${(damage as Rule).formula}`];
-  }
-  return [];
+function damageDescription(damage: string | { formula: string } | null | undefined): string[] {
+  return damage ? [`伤害${typeof damage === 'string' ? damage : damage.formula}`] : [];
 }
-
 function optionDescription(state: BattleState, option: ActionOption): string {
   const found = findActionRule(state, option.id);
   if (!found) return option.name;
-  const { category: group, key: id, rule } = found;
-  if (group === 'clear') return `清除${statusName(id)}`;
-
-  const parts = [
-    ...damageDescription(rule.damage),
-    ...effectsDescription(rule.effects),
-    ...effectsDescription(rule.apply),
-    ...effectsDescription(rule.on_success).map(text => `成功：${text}`),
-    ...effectsDescription(rule.on_hit).map(text => `命中：${text}`),
-    ...effectsDescription(rule.on_miss).map(text => `未命中：${text}`),
-    ...effectsDescription(rule.on_critical).map(text => `暴击：${text}`)
-  ];
-  if (rule.on_success?.choices) {
-    for (const choice of rule.on_success.choices as Rule[]) {
-      parts.push(`${choice.id}：${effectsDescription(choice.effects).join('、')}`);
-    }
+  const parts: string[] = [];
+  switch (found.category) {
+    case 'clear': return `清除${statusName(found.key)}`;
+    case 'sword': case 'attack':
+      parts.push(...damageDescription(found.rule.damage), ...effectsDescription(found.rule.on_hit, '命中：'), ...effectsDescription(found.rule.on_miss, '未命中：')); break;
+    case 'action':
+      parts.push(...effectsDescription(found.rule.effects), ...effectsDescription(found.rule.on_success, '成功：'));
+      if (found.rule.when_uncertain_check) parts.push(`难度${found.rule.when_uncertain_check.difficulty}判定成功后逃跑`);
+      break;
+    case 'potion':
+      parts.push(...effectsDescription(found.rule.apply));
+      if (found.rule.effect?.damage_modifier) parts.push(`剑攻击命中后额外伤害${found.rule.effect.damage_modifier}`);
+      parts.push(`毒性+${found.rule.toxicity}`); break;
+    case 'sign':
+      switch (found.key) {
+        case 'aard':
+          for (const choice of found.rule.on_success.choices) parts.push(`${choice.id}：${effectsDescription(choice.effects).join('、')}`);
+          break;
+        case 'igni': parts.push(...damageDescription(found.rule.damage), ...effectsDescription(found.rule.on_hit, '命中：'), ...effectsDescription(found.rule.on_critical, '暴击：')); break;
+        case 'yrden': parts.push('暂时降低目标防御和攻击判定'); break;
+        case 'quen': parts.push('生成抵挡伤害的护盾'); break;
+        case 'axii': parts.push(...effectsDescription(found.rule.on_success, '成功：'), ...effectsDescription(found.rule.on_critical, '暴击：')); break;
+        default: assertNever(found);
+      }
+      break;
+    default: assertNever(found);
   }
-  if (group === 'sign' && id === 'yrden') parts.push('暂时降低目标防御和攻击判定');
-  if (group === 'sign' && id === 'quen') parts.push('生成抵挡伤害的护盾');
-  if (rule.when_uncertain_check) parts.push(`难度${rule.when_uncertain_check.difficulty}判定成功后逃跑`);
-  if (group === 'potion' && rule.effect?.damage_modifier) {
-    parts.push(`剑攻击命中后额外伤害${rule.effect.damage_modifier}`);
-  }
-  if (group === 'potion') parts.push(`毒性+${rule.toxicity}`);
   return parts.length ? parts.join('；') : option.name;
 }
 
@@ -168,7 +166,7 @@ export function makeSessionView(state: BattleState): SessionView {
     } : null,
     outcome: state.outcome,
     options: options.map(option => ({ ...option, description: optionDescription(state, option) })),
-    targetParts: options.some(option => option.targetParts?.length) ? Object.entries<Rule>(parts).map(([id, part]) => ({
+    targetParts: options.some(option => option.targetParts?.length) ? Object.entries(parts).map(([id, part]) => ({
       id, name: part.name_zh, attackModifier: part.attack_modifier ?? 0,
       damageMultiplier: part.damage_multiplier ?? 1
     })) : []
