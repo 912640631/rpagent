@@ -1,40 +1,38 @@
-# AI-GM RPG Engine
+# AI-GM RPG 
 
-同一个 AI 可以主持自由冒险，并在交战时调用杰洛特与单只怪物的战斗引擎。叙事与战斗共用希望、绝望和历史，战斗结束后继续冒险。
+**TypeScript / Node.js / React / Vite / Tool Calling / SSE / Context Engineering**
 
-已提供 [TypeScript 独立 RPG Agent](RpgAgent/README.md)：配置模型通道后，直接在命令行玩，主 Agent 负责叙事，战斗子 Agent 接管战斗，支持本地续玩和上下文压缩。
+独立开发的可玩 AI-GM RPG Web 原型，将 LLM 叙事与确定性游戏规则结合，串联自由冒险、战斗交接、实时状态同步与存档恢复。玩家用自然语言描述行动，主 Agent 主持剧情，战斗子 Agent 接管战斗，规则引擎负责校验与结算。
+
+## 核心能力
+
+- **交互式 Web 客户端**：React + Vite 实现流式剧情、战斗交互、角色状态、模型配置与存读档；Node.js 提供 HTTP API，通过 SSE 的 `baseline` / `delta` 同步状态和 Agent 执行过程，控制台展示 Tool Call 参数、结果与请求事件。
+- **多模型服务适配**：封装 OpenAI-compatible Chat Completions 调用层，主 Agent 与战斗子 Agent 可独立配置 Provider 和模型；支持流式响应解析、增量 Tool Call 参数拼接、模型目录与连接检测。可配置非流式调用，流式缺少 usage 时后续请求自动改用非流式。
+- **持久化与恢复**：分离 Agent 会话与权威规则状态，以 NDJSON 事件日志、Checkpoint 和原子文件写入保存进度；恢复时结合工具执行记录与规则 Revision 判断提交状态，避免重复执行已完成的规则操作。手动存档配套保存上下文、规则、随机数状态和故事记录，读档前自动备份。
+- **Agent 上下文管理**：依据 Token 预算，将主 Agent 的早期剧情压缩为结构化的叙事续接备忘，保留近期完整消息及成组的工具调用结果；规则状态独立提供，完整故事独立存储，控制长对话的上下文规模。
+- **LLM 与规则协同**：通过 Tool Calling 将自然语言意图映射为可校验的游戏操作；确定性规则核心维护掷骰、资源、伤害与状态，模型根据规则结果生成叙事。
+
+## 快速开始
+
+需要 **Node.js 24+**。在仓库根目录运行：
 
 ```powershell
 npm install
-npm run build
-node RpgAgent/dist/src/cli.js --init
-npm run rpg
+npm run web
 ```
 
-`--init` 从本地 `api接入.txt` 生成被 Git 忽略的 Provider 配置。已有配置时直接 `npm run rpg`。
+打开 [http://127.0.0.1:4317](http://127.0.0.1:4317)，在「模型」中配置 API 地址、凭据和模型，保存并测试连接，再新建冒险。模型服务需要支持 Tool Calling；API 地址填写前缀（如 `https://example.com/v1`）。
 
-需要 Node.js 24 或更新版本。从仓库根目录运行：
+网页数据默认保存在 `.local/web-rpg/`。浏览器断线后后台行动继续执行；模型失败或进程中断后，使用「重试恢复」继续。
 
-```powershell
-npm install
-npm run build
-'{"action":"status"}' | node E:\Projects\witcher\cli.js --state E:\Projects\witcher\.local\adventure.json
-```
+## 项目结构
 
-将 [完整 AI 提示词](AI-QUICKSTART.md) 复制给能执行 PowerShell 的 AI 即可开始。统一入口每次从 stdin 读取一个 JSON，返回 `{ok:true,result}` 或 `{ok:false,error:{code,message}}`；失败退出码为 1。
-
-| action | 输入与用途 |
+| 模块 | 职责 |
 | --- | --- |
-| status / reset | 读取冒险／明确重开整局；reset 清空战斗档案。 |
-| roll | expectedRevision、difficulty，可选 modifier、useHopeAdvantage。具体判定位于 result.result。 |
-| spendFear | expectedRevision；叙事阶段消费 2 绝望。 |
-| monsters | 查询现有怪物的 ID、名称和简介。 |
-| startBattle | expectedRevision、config（monsterId，可选 initiative、initial、seed、maxActions）。 |
-| act | battleId、战斗 expectedRevision、command；合法行动和待决选项由战斗视图提供。 |
-| battleResult | 可选 battleId；只读查询当前或归档战斗终局、双方状态、资源快照和事件。 |
+| [Frontend](Frontend/) | React 客户端、SSE 增量同步、骰子动画与执行控制台 |
+| [RpgAgent](RpgAgent/README.md) | Agent 调度、模型适配、上下文管理、HTTP API 与存档恢复 |
+| [CombatEngine](CombatEngine/README.md) | 战斗规则、行动校验与权威状态账本 |
+| [NarrativeDice](NarrativeDice/README.md) | 叙事判定与希望／绝望资源结算 |
 
-`--state` 优先于环境变量 `ADVENTURE_SESSION_FILE`；两者省略时固定使用仓库内 `NarrativeDice/.local/adventure.json`，不随调用目录变化。相对的显式路径按调用目录解析，推荐始终使用绝对路径。请勿用两个独立 CLI 混写统一存档。不会自动迁移旧叙事存档。
+`npm run build` 构建全部模块；`npm test` 构建并运行引擎、Agent、Web、前端及 CLI 测试。另提供 [独立 RPG Agent CLI](RpgAgent/README.md) 和根目录 `cli.js` JSON 规则入口。
 
-后续战斗初始角色状态通过 config.initial 提供，暂不自动恢复或延续全部角色数值。当前仅支持一对一，同行 NPC 不参与机械结算。完整规则和示例见提示词；库接口及旧 CLI 仍见 [战斗引擎说明](CombatEngine/README.md) 和 [独立叙事工具说明](NarrativeDice/README.md)。
-
-`npm test` 会先构建，再运行两个引擎、独立 RPG Agent 及统一 CLI 的测试。
