@@ -1,5 +1,10 @@
 /.agents/
 /skills/
+/.scratch/
+/docs/
+/AGENTS.md
+/CONTEXT.md
+/skills-lock.json
 combat参考/
 *.zip
 # npm workspaces and generated files (at any depth)
