@@ -1,4 +1,4 @@
-import type { AdventureService, Event } from '../../RpgAgent/src/web/service.js';
+import type { AdventureService } from '../../RpgAgent/src/web/service.js';
 import type { Settings, SettingsStore } from '../../RpgAgent/src/web/settings.js';
 import type { Combatant } from 'witcher-combat-engine';
 export type { ExecutionEvent, DiceEvent } from '../../RpgAgent/src/events.js';
@@ -20,7 +20,7 @@ export interface ConnectionTest { ok: boolean; elapsedMs: number }
 export type RunAction = <T>(action: () => Promise<T>) => Promise<T | undefined>;
 export type AgentRole = 'main' | 'combat';
 
-export interface EventPayload { state: AdventureState; events: Event[]; history: boolean }
+export type { EventPayload } from '../../RpgAgent/src/web/transport.js';
 export interface DieResult { kind: 'hope' | 'fear' | 'd20'; sides: 12 | 20; value: number }
 export interface DiceResult { id: string; label: string; dice: DieResult[]; total?: number }
 export interface ReadingPreferences { font: number; animation: boolean; duration: number; reduced: boolean }

@@ -1,3 +1,4 @@
+import { ContextCapacityError } from './recovery.js';
 import type { Adapter, Config, Message, ToolCall } from './types.js';
 import { compact, tokens } from './context.js';
 import { resolveRoute } from './config.js';
@@ -63,7 +64,7 @@ export class Harness {
       harness.refreshRuntime();
       const route = harness.routes.main;
       const maximum = Math.min(harness.config.maxOutputTokens, options.maxTokens);
-      if (tokens(messages) + maximum >= route.contextTokens) throw new Error('摘要请求也超出上下文容量；原始存档保持不变。');
+      if (tokens(messages) + maximum >= route.contextTokens) throw new ContextCapacityError('main_context_capacity', '摘要请求也超出上下文容量；原始存档保持不变。');
       const requestId = randomUUID(); const started = Date.now();
       const common = { agent: 'main' as const, requestId, purpose: 'compression' as const, model: route.model };
       emit?.({ ...common, type: 'request.start', prompt: messages[0]!.content });
@@ -189,7 +190,9 @@ export class Harness {
     delete this.store.data.battleId;
     delete this.store.data.playerIntent;
     this.store.data.combat = []; delete this.store.data.combatUsage;
-    this.store.save(); this.output.notice('战斗已结算，主 Agent 继续叙事。'); return true;
+    this.store.save();
+    this.output.event?.({ type: 'battle.settled', agent: 'main', battleId: id });
+    this.output.notice('战斗已结算，主 Agent 继续叙事。'); return true;
   }
 
   async turn(input?: string): Promise<void> {
@@ -219,7 +222,7 @@ export class Harness {
       const tools = combat ? combatTools : mainTools;
       // Local bound catches oversized new input; auto-pressure trigger above uses API usage only.
       if (tokens({ messages, tools }) + this.config.maxOutputTokens >= route.contextTokens) {
-        throw new Error(combat ? '战斗上下文已满。请重启以从权威战斗状态恢复。' : '上下文空间不足，请用 /compact；原始存档保持不变。');
+        throw new ContextCapacityError(combat ? 'combat_context_capacity' : 'main_context_capacity', combat ? '战斗上下文已满。请重试以从权威战斗状态恢复。' : '上下文空间不足，请用 /compact；原始存档保持不变。');
       }
       let text = ''; const calls: ToolCall[] = []; let usage: number | undefined;
       const routeConfig = combat ? this.config.combat : this.config.main;

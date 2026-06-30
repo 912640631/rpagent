@@ -1,3 +1,4 @@
+import { ContextCapacityError } from './recovery.js';
 import { get_encoding } from 'tiktoken';
 import type { Adapter, Message } from './types.js';
 
@@ -40,7 +41,7 @@ export async function compact(adapter: Adapter, model: string, memo: Memo, messa
     ];
     const limits = typeof contextCapacity === 'function' ? contextCapacity() : { contextTokens: contextCapacity, maxOutputTokens: maximum };
     const maxTokens = Math.min(maximum, limits.maxOutputTokens);
-    if (tokens(input) + maxTokens >= limits.contextTokens) throw new Error('摘要请求也超出上下文容量；原始存档保持不变。');
+    if (tokens(input) + maxTokens >= limits.contextTokens) throw new ContextCapacityError('main_context_capacity', '摘要请求也超出上下文容量；原始存档保持不变。');
     let text = '';
     for await (const chunk of adapter.generate(input, { model, maxTokens, stream: false })) {
       if (chunk.type === 'text') text += chunk.text;

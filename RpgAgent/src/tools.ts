@@ -37,6 +37,9 @@ export class Rules {
     this.adventure = createAdventureSession(path);
     this.handoff = createBattleHandoff(path);
   }
+  exportSnapshot(): unknown { return this.adventure.exportSnapshot(); }
+  validateSnapshot(value: unknown): void { this.adventure.validateSnapshot(value); }
+  installSnapshot(value: unknown): void { this.adventure.installSnapshot(value); }
   latestCharacter(): Combatant | undefined {
     try { return this.adventure.battleRecord().state.combatants.geralt; }
     catch (error) { if ((error as { code?: string }).code === 'BATTLE_NOT_FOUND') return undefined; throw error; }

@@ -1,3 +1,4 @@
+import { JournalBackend } from '../src/web/journal.js';
 import { test, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
@@ -141,7 +142,7 @@ test('raising battle result budget lets manual retry settle a finished battle wi
     resources: { revision: ledger.revision, ...ledger.resources }
   });
   rules.handoff.act(battle.battleId, 0, chooseTestCommand(rules.adventure.battleRecord().state));
-  const store = new Store(join(dir, 'session.json')); store.data.battleId = battle.battleId; store.save();
+  const store = new Store(join(dir, 'journal.ndjson'), new JournalBackend(join(dir, 'journal.ndjson'))); store.data.battleId = battle.battleId; store.save();
   const main = new Mock([[text('战斗后继续')]]);
   const restarted = new AdventureService(root, { main, combat: new Mock([]) });
   t.after(() => restarted.close());

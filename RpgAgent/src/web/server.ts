@@ -4,6 +4,8 @@ import { resolve, extname, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AdventureService } from './service.js';
 import { defaults } from './settings.js';
+import type { EventPayload } from './transport.js';
+import type { Event } from './service.js';
 
 async function body(req: IncomingMessage) {
   if (!req.headers['content-type']?.startsWith('application/json')) throw new Error('需要 application/json');
@@ -41,16 +43,34 @@ export function createWebServer(service: AdventureService, assets: string) {
         if (segments[1] === 'adventures' && segments[3] === 'events') {
           const state = service.state(id); const events = service.events(id);
           res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' });
-          // Every connection starts with a historical baseline, including automatic reconnects.
-          res.write(`data: ${JSON.stringify({ state, events, history: true })}\n\n`);
+          let cursor = state.sequence;
+          let stream = state.stream;
+          let pending: Event[] = [];
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          const send = (payload: EventPayload) => res.write(`id: ${payload.type === 'baseline' ? payload.state.sequence : payload.patch.values.sequence}\ndata: ${JSON.stringify(payload)}\n\n`);
+          const baseline = () => {
+            if (timer) clearTimeout(timer); timer = undefined; pending = [];
+            const state = service.state(id); cursor = state.sequence; stream = state.stream;
+            send({ version: 2, type: 'baseline', history: true, state, events: service.events(id) });
+          };
+          const flush = () => {
+            if (timer) clearTimeout(timer); timer = undefined;
+            if (!pending.length) return;
+            const events = pending; pending = [];
+            const patch = service.delta(id, events, stream);
+            send({ version: 2, type: 'delta', history: false, after: cursor, events, patch });
+            cursor = events.at(-1)!.id; stream = service.stream(id);
+          };
+          send({ version: 2, type: 'baseline', history: true, state, events });
           const unsubscribe = service.subscribe((eventId, event) => {
-            if (eventId === id) {
-              const restored = event.type === 'snapshot.restored';
-              res.write(`id: ${event.id}\ndata: ${JSON.stringify({ state: service.state(id), events: restored ? service.events(id) : [event], history: restored })}\n\n`);
-            }
+            if (eventId !== id) return;
+            if (event.type === 'snapshot.restored') { baseline(); return; }
+            pending.push(event);
+            if (event.type === 'request.chunk') timer ??= setTimeout(flush, 50);
+            else flush();
           });
           const heartbeat = setInterval(() => res.write(': heartbeat\n\n'), 15000);
-          req.on('close', () => { clearInterval(heartbeat); unsubscribe(); }); return;
+          req.on('close', () => { if (timer) clearTimeout(timer); clearInterval(heartbeat); unsubscribe(); }); return;
         }
       }
       if (req.method === 'POST') {

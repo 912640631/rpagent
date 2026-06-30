@@ -1,6 +1,7 @@
 import { randomInt, randomUUID } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { atomicJson as write, withFileLock } from './persistence.js';
+import { resolve } from 'node:path';
 import { initialState, resolveFearSpend, resolveRoll, type NarrativeState } from '@ai-gm/narrative-dice';
 import { validCommand } from './command.js';
 import { dataRevision } from './data.js';
@@ -39,11 +40,9 @@ function fresh(revision = 0): AdventureState {
   return { ...initialState(), revision, owner: 'narrative', battle: null };
 }
 
-function read(path: string, checkDataRevision = true): AdventureState {
-  if (!existsSync(path)) return fresh();
-  let state: AdventureState;
-  try { state = JSON.parse(readFileSync(path, 'utf8')) as AdventureState; }
-  catch { throw new AdventureError('CORRUPT_SESSION', 'Adventure state is not valid JSON'); }
+function validateState(value: unknown, checkDataRevision = true): AdventureState {
+  const state = value as AdventureState;
+  if (!state || typeof state !== 'object' || Array.isArray(state)) throw new AdventureError('CORRUPT_SESSION', 'Adventure state is invalid');
   if (state.version !== 1 || !Number.isSafeInteger(state.revision) || state.revision < 0 ||
       !Number.isSafeInteger(state.hope) || state.hope < 0 || state.hope > 6 ||
       !Number.isSafeInteger(state.fear) || state.fear < 0 || state.fear > 12 ||
@@ -63,43 +62,22 @@ function read(path: string, checkDataRevision = true): AdventureState {
   if (state.randomState !== undefined && (!Number.isSafeInteger(state.randomState) || state.randomState < 1 || state.randomState > 0xffffffff)) {
     throw new AdventureError('CORRUPT_SESSION', 'Adventure random state is invalid');
   }
-  if (checkDataRevision && state.battle && state.battle.state.dataRevision !== dataRevision) {
+  if (checkDataRevision && [state.battle, ...(state.battleArchive ?? [])].some(record => record && (record.state.version !== 1 || record.state.dataRevision !== dataRevision || record.initialState && record.initialState.dataRevision !== dataRevision))) {
     throw new AdventureError('DATA_MISMATCH', 'Stored battle uses a different combat data revision');
   }
   return state;
 }
 
-function write(path: string, state: AdventureState): void {
-  mkdirSync(dirname(path), { recursive: true });
-  const temporary = `${path}.${randomUUID()}.tmp`;
-  try {
-    writeFileSync(temporary, JSON.stringify(state), { encoding: 'utf8', flag: 'wx' });
-    renameSync(temporary, path);
-  } finally {
-    if (existsSync(temporary)) unlinkSync(temporary);
-  }
+function read(path: string, checkDataRevision = true): AdventureState {
+  if (!existsSync(path)) return fresh();
+  let value: unknown;
+  try { value = JSON.parse(readFileSync(path, 'utf8')); }
+  catch { throw new AdventureError('CORRUPT_SESSION', 'Adventure state is not valid JSON'); }
+  return validateState(value, checkDataRevision);
 }
 
 function locked<T>(path: string, operation: () => T): T {
-  mkdirSync(dirname(path), { recursive: true });
-  const lock = `${path}.lock`;
-  const pause = new Int32Array(new SharedArrayBuffer(4));
-  let acquired = false;
-  for (let attempt = 0; attempt < 100; attempt++) {
-    try { mkdirSync(lock); acquired = true; break; }
-    catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-      try {
-        if (Date.now() - statSync(lock).mtimeMs > 30_000) rmdirSync(lock);
-      } catch (staleError) {
-        if (!['ENOENT', 'ENOTEMPTY'].includes((staleError as NodeJS.ErrnoException).code ?? '')) throw staleError;
-      }
-      Atomics.wait(pause, 0, 0, 25);
-    }
-  }
-  if (!acquired) throw new AdventureError('SESSION_BUSY', 'Adventure state is busy');
-  try { return operation(); }
-  finally { rmdirSync(lock); }
+  return withFileLock(path, operation, () => new AdventureError('SESSION_BUSY', 'Adventure state is busy'));
 }
 
 function checkRevision(state: AdventureState, expectedRevision: number): void {
@@ -129,6 +107,12 @@ export function createAdventureSession(storagePath = defaultAdventurePath()) {
   const path = resolve(storagePath);
   return {
     status() { return view(read(path)); },
+    exportSnapshot(): unknown { return structuredClone(read(path)); },
+    validateSnapshot(value: unknown): void { validateState(value); },
+    installSnapshot(value: unknown): void {
+      const state = structuredClone(validateState(value));
+      locked(path, () => write(path, state));
+    },
     /** Persist the random origin even when saving before the first rule action. */
     initializeRandomState() {
       return locked(path, () => {

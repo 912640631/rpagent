@@ -1,3 +1,4 @@
+import { JournalBackend } from '../src/web/journal.js';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { spawnSync } from 'node:child_process';
@@ -8,7 +9,7 @@ import { Store } from '../src/store.js';
 import { ScriptedModel, call, text } from './helpers/scripted-model.js';
 import { temporaryAdventures } from './helpers/adventures.js';
 
-for (const stage of ['restore.json', 'rules.json', 'session.json']) {
+for (const stage of ['restore.json', 'rules.json', 'journal.ndjson']) {
   test(`crash after replacing ${stage} restores paired story, memory and dice across two restarts`, async t => {
     const { root, open } = temporaryAdventures(t, 'witcher-restore-crash-');
     const initial = new ScriptedModel([
@@ -70,7 +71,7 @@ for (const node of ['dying', 'bonus_action'] as const) {
     }, { scene: '河畔', facts: [], objectives: [], environment: [], risks: [],
       participants: [{ id: 'geralt', role: 'geralt' }, { id: 'enemy', role: 'monster' }],
       resources: { revision: status.revision, ...status.resources } });
-    const store = new Store(join(directory, 'session.json')); store.data.battleId = battle.battleId; store.save();
+    const store = new Store(join(directory, 'journal.ndjson'), new JournalBackend(join(directory, 'journal.ndjson'))); store.data.battleId = battle.battleId; store.save();
     const choice = { type: 'decision', choice: node === 'dying' ? 'gamble' : 'potion:thunderbolt' };
     const decisions = () => [
       [call('battle_act', { command: choice })],

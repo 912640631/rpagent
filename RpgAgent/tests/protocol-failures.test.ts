@@ -1,3 +1,4 @@
+import { JournalBackend } from '../src/web/journal.js';
 import assert from 'node:assert/strict';
 import { test, type TestContext } from 'node:test';
 import { createServer, type ServerResponse } from 'node:http';
@@ -103,7 +104,7 @@ for (const failure of failures) {
       participants: [{ id: 'geralt', role: 'geralt' }, { id: 'enemy', role: 'monster' }],
       resources: { revision: status.revision, ...status.resources },
     });
-    const store = new Store(join(directory, 'session.json')); store.data.battleId = battle.battleId; store.save();
+    const store = new Store(join(directory, 'journal.ndjson'), new JournalBackend(join(directory, 'journal.ndjson'))); store.data.battleId = battle.battleId; store.save();
     const service = f.open();
     const id = f.id, saved = await service.save(id, '攻击前'), before = service.state(id);
     service.submit(id, 'failed', '普通攻击'); await service.idle(id);

@@ -20,7 +20,8 @@ export type HarnessEvent =
   | { type: 'message.complete'; agent: AgentRole; requestId: string; text: string }
   | { type: 'tool.start'; agent: AgentRole; requestId?: string; call: ToolCall }
   | { type: 'tool.result'; agent: AgentRole; requestId?: string; call: ToolCall; result: ToolResult }
-  | { type: 'battle.handoff'; agent: 'combat'; requestId?: string; battleId: string; test?: boolean };
+  | { type: 'battle.handoff'; agent: 'combat'; requestId?: string; battleId: string; test?: boolean }
+  | { type: 'battle.settled'; agent: 'main'; battleId: string };
 
 export type ExecutionEvent = (HarnessEvent
   | { type: 'notice'; text: string }

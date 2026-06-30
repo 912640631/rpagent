@@ -14,6 +14,7 @@ export type {
   Command, DamageRank, DecisionCommand, Event, Outcome, PendingDecision, Side
 } from './types.js';
 
+export { atomicJson, atomicText } from './persistence.js';
 export { commandSchema, validCommand } from './command.js';
 export { actionId, parseActionId, actionRules, findActionRule } from './action-rules.js';
 export type { ActionCategory, ActionIdentifier, ActionRule } from './action-rules.js';

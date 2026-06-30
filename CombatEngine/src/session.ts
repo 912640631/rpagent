@@ -1,7 +1,6 @@
 import { createHash, randomInt, randomUUID } from 'node:crypto';
-import {
-  existsSync, mkdirSync, readFileSync, renameSync, rmdirSync, statSync, unlinkSync, writeFileSync
-} from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { atomicJson as writeStored, withFileLock as withLock } from './persistence.js';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -84,40 +83,6 @@ function readStored(path: string): StoredSession | null {
       !Number.isSafeInteger(value.revision) || !isRecord(value.state) ||
       !Array.isArray(value.state.events)) throw new Error('CORRUPT_SESSION');
   return value as unknown as StoredSession;
-}
-
-function writeStored(path: string, record: StoredSession): void {
-  mkdirSync(dirname(path), { recursive: true });
-  const temporary = `${path}.${randomUUID()}.tmp`;
-  try {
-    writeFileSync(temporary, JSON.stringify(record), { encoding: 'utf8', flag: 'wx' });
-    renameSync(temporary, path);
-  } finally {
-    if (existsSync(temporary)) unlinkSync(temporary);
-  }
-}
-
-function withLock<T>(path: string, operation: () => T): T {
-  mkdirSync(dirname(path), { recursive: true });
-  const lock = `${path}.lock`;
-  const pause = new Int32Array(new SharedArrayBuffer(4));
-  let acquired = false;
-  for (let attempt = 0; attempt < 100; attempt++) {
-    try { mkdirSync(lock); acquired = true; break; }
-    catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-      try {
-        if (Date.now() - statSync(lock).mtimeMs > 30_000) rmdirSync(lock);
-      } catch (staleError) {
-        if ((staleError as NodeJS.ErrnoException).code !== 'ENOENT' &&
-            (staleError as NodeJS.ErrnoException).code !== 'ENOTEMPTY') throw staleError;
-      }
-      Atomics.wait(pause, 0, 0, 25);
-    }
-  }
-  if (!acquired) throw new Error('SESSION_BUSY');
-  try { return operation(); }
-  finally { rmdirSync(lock); }
 }
 
 export interface CombatSession {

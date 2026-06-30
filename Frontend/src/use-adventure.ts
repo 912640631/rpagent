@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api.ts';
+import { applyAdventureUpdate } from './adventure-updates.ts';
 import { diceResults } from './dice-results.ts';
 import type { Adventure, AdventureList, AdventureState, EventPayload, ExecutionEvent, DiceResult, Monster, Operation, RunAction, SavedSnapshot } from './types.ts';
 
@@ -28,19 +29,30 @@ export function useAdventure(run: RunAction) {
     setState(null); setEvents([]); setQueue([]); setConnected(false); pendingSend.current = null;
     if (!id) return;
     let cursor = 0;
-    const source = new EventSource(`/api/adventures/${id}/events`);
-    source.onmessage = message => {
-      const payload = JSON.parse(message.data) as EventPayload; setConnected(true); setState(payload.state);
-      if (payload.history) {
-        setEvents(payload.events); setQueue([]); cursor = payload.state.sequence; return;
-      }
-      const fresh = payload.events.filter(event => event.id > cursor);
-      cursor = Math.max(cursor, payload.state.sequence);
-      setEvents(old => [...old, ...fresh]);
-      setQueue(old => [...old, ...fresh.flatMap(event => diceResults(event, { forAnimation: true }))]);
+    let current: AdventureState | null = null;
+    let source: EventSource;
+    let reconnect: ReturnType<typeof setTimeout> | undefined;
+    let disposed = false;
+    const connect = () => {
+      if (disposed) return;
+      source = new EventSource(`/api/adventures/${id}/events`);
+      source.onmessage = message => {
+        try {
+          const update = applyAdventureUpdate(current, cursor, JSON.parse(message.data) as EventPayload);
+          cursor = update.cursor; current = update.state;
+          setConnected(true); setState(current);
+          if (update.history) { setEvents(update.events); setQueue([]); return; }
+          setEvents(old => [...old, ...update.events]);
+          setQueue(old => [...old, ...update.events.flatMap(event => diceResults(event, { forAnimation: true }))]);
+        } catch {
+          setConnected(false); source.onmessage = null; source.onerror = null; source.close();
+          reconnect = setTimeout(connect, 100);
+        }
+      };
+      source.onerror = () => setConnected(false);
     };
-    source.onerror = () => setConnected(false);
-    return () => { source.onmessage = null; source.onerror = null; source.close(); };
+    connect();
+    return () => { disposed = true; if (reconnect) clearTimeout(reconnect); source.onmessage = null; source.onerror = null; source.close(); };
   }, [id]);
 
   const queued = async <T,>(message: string, action: () => Promise<T>): Promise<T> => {

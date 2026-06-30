@@ -16,17 +16,20 @@ export interface Save {
   settledBattleId?: string; mainUsage?: number; combatUsage?: number;
   pending?: PendingTool; playerIntent?: PlayerIntent; streamWithoutUsage?: boolean;
 }
+export interface StoreBackend { load(): Save | undefined; save(data: Save): void }
+
 export class Store {
   data: Save;
-  constructor(readonly path: string) {
-    this.data = existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) :
-      { version: 1, main: [], memo: emptyMemo(), combat: [] };
-    if (this.data.version !== 1 || !Array.isArray(this.data.main) || !Array.isArray(this.data.combat) || !this.data.memo) {
+  constructor(readonly path: string, private readonly backend?: StoreBackend) {
+    const saved = backend ? backend.load() : existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : undefined;
+    this.data = saved === undefined ? { version: 1, main: [], memo: emptyMemo(), combat: [] } : saved;
+    if (!this.data || this.data.version !== 1 || !Array.isArray(this.data.main) || !Array.isArray(this.data.combat) || !this.data.memo) {
       throw new Error('应用存档无效，未覆盖。');
     }
   }
   save(): void {
-    atomicJson(this.path, this.data);
+    if (this.backend) this.backend.save(this.data);
+    else atomicJson(this.path, this.data);
   }
 }
 
