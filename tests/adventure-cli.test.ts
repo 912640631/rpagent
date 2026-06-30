@@ -1,18 +1,34 @@
-const assert = require('node:assert/strict');
-const { spawnSync } = require('node:child_process');
-const { mkdtempSync, readFileSync, copyFileSync, rmSync, existsSync } = require('node:fs');
-const { tmpdir } = require('node:os');
-const { resolve, join } = require('node:path');
-const { pathToFileURL } = require('node:url');
-const test = require('node:test');
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, copyFileSync, rmSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { resolve, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import test, { type TestContext } from 'node:test';
+import type { createAdventureSession } from '../CombatEngine/dist/src/adventure-session.js';
+import type { BattleState } from '../CombatEngine/dist/src/types.js';
 
-const root = resolve(__dirname, '..');
-const cli = join(root, 'cli.js');
-function fixture(t) {
+type Adventure = ReturnType<typeof createAdventureSession>;
+type ActionResults = {
+  status: ReturnType<Adventure['status']>;
+  reset: ReturnType<Adventure['reset']>;
+  roll: ReturnType<Adventure['narrativeRoll']>;
+  spendFear: ReturnType<Adventure['spendFear']>;
+  startBattle: ReturnType<Adventure['startBattle']>;
+  act: ReturnType<Adventure['act']>;
+  monsters: { monsters: Array<{ id: string; name: string; description: string }> };
+  battleResult: Pick<BattleState, 'outcome' | 'combatants' | 'events'> & { resources: { hope: number; fear: number } };
+};
+type Response = { ok: true; result: unknown } | { ok: false; error: { code: string; message: string } };
+interface RunOptions { cli?: string; args?: string[]; cwd?: string; env?: NodeJS.ProcessEnv }
+
+const root = resolve(import.meta.dirname, '..');
+const cli = join(root, 'cli.ts');
+function fixture(t: TestContext) {
   const directory = mkdtempSync(join(tmpdir(), 'witcher-cli-'));
   t.after(() => rmSync(directory, { recursive: true, force: true }));
   const state = join(directory, 'adventure.json');
-  const run = (input, options = {}) => {
+  const run = (input: unknown, options: RunOptions = {}): Response => {
     const execution = spawnSync(process.execPath, [options.cli ?? cli, ...(options.args ?? ['--state', state])], {
       cwd: options.cwd ?? directory,
       env: { ...process.env, ADVENTURE_SESSION_FILE: '', ...options.env },
@@ -20,19 +36,19 @@ function fixture(t) {
     });
     assert.equal(execution.stderr, '');
     assert.equal(execution.error, undefined);
-    const output = JSON.parse(execution.stdout);
+    const output: Response = JSON.parse(execution.stdout);
     assert.equal(execution.status, output.ok ? 0 : 1);
     return output;
   };
-  const ok = (input, options) => {
+  const ok = <A extends keyof ActionResults>(input: { action: A } & Record<string, unknown>, options?: RunOptions): ActionResults[A] => {
     const output = run(input, options);
-    assert.equal(output.ok, true, JSON.stringify(output));
-    return output.result;
+    assert.ok(output.ok, JSON.stringify(output));
+    return output.result as ActionResults[A];
   };
-  const rejects = (input, code) => {
+  const rejects = (input: unknown, code: string) => {
     const before = existsSync(state) ? readFileSync(state, 'utf8') : null;
     const output = run(input);
-    assert.equal(output.ok, false);
+    assert.ok(!output.ok);
     assert.equal(output.error.code, code, JSON.stringify(output));
     assert.equal(existsSync(state) ? readFileSync(state, 'utf8') : null, before);
   };
@@ -48,27 +64,27 @@ test('unified CLI continues narrative, both battle sides and narrative across pr
   state = f.ok({ action: 'startBattle', expectedRevision: state.revision,
     config: { monsterId: 'wolf', seed: 42, initiative: 'monster', maxActions: 20 } }, { cwd: root });
   assert.deepEqual(state.resources, before);
-  const battleId = state.battle.battleId;
+  const battleId = state.battle!.battleId;
   const actors = new Set();
   while (state.owner === 'combat') {
-    const view = state.battle.view;
+    const view = state.battle!.view;
     const command = view.pending
       ? { type: 'decision', choice: view.pending.kind === 'dying' ? 'survive' : 'skip' }
       : { type: 'action', id: view.initiative === 'geralt' ? 'sword:normal' : 'attack:normal' };
     if (!view.pending) actors.add(view.initiative);
-    state = f.ok({ action: 'act', battleId, expectedRevision: state.battle.revision, command });
-    assert.deepEqual(state.resources, { hope: state.battle.view.hope, fear: state.battle.view.fear });
+    state = f.ok({ action: 'act', battleId, expectedRevision: state.battle!.revision, command });
+    assert.deepEqual(state.resources, { hope: state.battle!.view.hope, fear: state.battle!.view.fear });
   }
   assert.deepEqual(actors, new Set(['monster', 'geralt']));
   const result = f.ok({ action: 'battleResult' });
-  assert.equal(result.outcome, state.battle.view.outcome);
+  assert.equal(result.outcome, state.battle!.view.outcome);
   assert.deepEqual(result.resources, state.resources);
   assert(result.events.length > 0);
   assert.equal(typeof result.combatants.geralt.dead, 'boolean');
   state = f.ok({ action: 'roll', expectedRevision: state.revision, difficulty: 12 });
   assert.deepEqual(f.ok({ action: 'battleResult', battleId }), result);
   state = f.ok({ action: 'startBattle', expectedRevision: state.revision, config: { monsterId: 'drowner' } });
-  assert.notEqual(state.battle.battleId, battleId);
+  assert.notEqual(state.battle!.battleId, battleId);
   assert.deepEqual(f.ok({ action: 'battleResult', battleId }), result);
   assert.deepEqual(f.ok({ action: 'status' }, { cwd: root }), state);
 });
@@ -87,7 +103,7 @@ test('rejected commands preserve the ledger and terminal reads never settle an a
   f.rejects({ action: 'battleResult' }, 'BATTLE_NOT_FINISHED');
   f.rejects({ action: 'battleResult', battleId: null }, 'INVALID_COMMAND');
   f.rejects({ action: 'battleResult', battleId: 'missing' }, 'BATTLE_NOT_FOUND');
-  const act = { action: 'act', battleId: state.battle.battleId, expectedRevision: state.battle.revision };
+  const act = { action: 'act', battleId: state.battle!.battleId, expectedRevision: state.battle!.revision };
   f.rejects({ ...act, expectedRevision: 99, command: { type: 'action', id: 'sword:normal' } }, 'STALE_REVISION');
   f.rejects({ ...act, command: { type: 'action', id: 'invented' } }, 'ILLEGAL_COMMAND');
   f.rejects({ ...act, command: { type: 'action', id: 'sword:normal', useHopeAdvantage: 'yes' } }, 'INVALID_COMMAND');
@@ -95,17 +111,17 @@ test('rejected commands preserve the ledger and terminal reads never settle an a
 
 test('insufficient combat hope cannot commit', async t => {
   const f = fixture(t);
-  const { createAdventureSession } = await import(pathToFileURL(join(root, 'CombatEngine/dist/src/adventure-session.js')));
+  const { createAdventureSession } = await import(pathToFileURL(join(root, 'CombatEngine/dist/src/adventure-session.js')).href) as typeof import('../CombatEngine/dist/src/adventure-session.js');
   const adventure = createAdventureSession(f.state);
   // Deterministic narrative rolls arrange an empty hope pool through public rules.
   for (let i = 0; i < 2; i++) {
     const dice = [1, 12];
     const current = adventure.status();
-    adventure.narrativeRoll(current.revision, { difficulty: 30, useHopeAdvantage: i === 0 }, () => dice.shift());
+    adventure.narrativeRoll(current.revision, { difficulty: 30, useHopeAdvantage: i === 0 }, () => dice.shift()!);
   }
   let state = f.ok({ action: 'startBattle', expectedRevision: adventure.status().revision,
     config: { monsterId: 'wolf', seed: 42 } });
-  f.rejects({ action: 'act', battleId: state.battle.battleId, expectedRevision: 0,
+  f.rejects({ action: 'act', battleId: state.battle!.battleId, expectedRevision: 0,
     command: { type: 'action', id: 'sword:normal', useHopeAdvantage: true } }, 'ILLEGAL_COMMAND');
 });
 test('pending dying choice survives a CLI restart', t => {
@@ -113,13 +129,13 @@ test('pending dying choice survives a CLI restart', t => {
   const config = { monsterId: 'fiend', seed: 123456, initiative: 'monster', initial: { geralt: { hp: 1, armor: 0 } } };
   let state = f.ok({ action: 'reset' });
   state = f.ok({ action: 'startBattle', expectedRevision: state.revision, config });
-  state = f.ok({ action: 'act', battleId: state.battle.battleId, expectedRevision: 0,
+  state = f.ok({ action: 'act', battleId: state.battle!.battleId, expectedRevision: 0,
     command: { type: 'action', id: 'attack:normal' } });
-  assert.equal(state.battle.view.pending.kind, 'dying');
-  const { events, ...persisted } = state;
+  assert.equal(state.battle!.view.pending!.kind, 'dying');
+  const { events, ...persisted } = state as ActionResults['act'];
   assert(events.some(event => event.type === 'decision_required'));
   assert.deepEqual(f.ok({ action: 'status' }), persisted);
-  state = f.ok({ action: 'act', battleId: state.battle.battleId, expectedRevision: state.battle.revision,
+  state = f.ok({ action: 'act', battleId: state.battle!.battleId, expectedRevision: state.battle!.revision,
     command: { type: 'decision', choice: 'survive' } });
   assert.equal(state.owner, 'narrative');
   assert.equal(f.ok({ action: 'battleResult' }).outcome, 'geralt_incapacitated');
@@ -153,13 +169,16 @@ test('malformed requests return machine-readable errors without changing the led
 });
 test('invalid CLI arguments return a machine-readable error', t => {
   const f = fixture(t);
-  assert.equal(f.run({ action: 'status' }, { args: ['--wrong'] }).error.code, 'INVALID_ARGUMENTS');
+  const invalid = f.run({ action: 'status' }, { args: ['--wrong'] });
+  assert.ok(!invalid.ok);
+  assert.equal(invalid.error.code, 'INVALID_ARGUMENTS');
 });
 test('missing build returns a machine-readable recovery instruction', t => {
   const f = fixture(t);
-  const isolatedCli = join(f.directory, 'cli.js');
+  const isolatedCli = join(f.directory, 'cli.ts');
   copyFileSync(cli, isolatedCli);
   const missing = f.run({ action: 'status' }, { cli: isolatedCli });
+  assert.ok(!missing.ok);
   assert.equal(missing.error.code, 'BUILD_REQUIRED');
   assert.match(missing.error.message, /npm run build/);
 });
@@ -168,7 +187,7 @@ test('action limit remains a distinct terminal outcome', t => {
   const f = fixture(t);
   let state = f.ok({ action: 'startBattle', expectedRevision: 0,
     config: { monsterId: 'fiend', seed: 42, maxActions: 1 } });
-  state = f.ok({ action: 'act', battleId: state.battle.battleId, expectedRevision: 0,
+  state = f.ok({ action: 'act', battleId: state.battle!.battleId, expectedRevision: 0,
     command: { type: 'action', id: 'sign:quen' } });
   assert.equal(state.owner, 'narrative');
   assert.equal(f.ok({ action: 'battleResult' }).outcome, 'action_limit');

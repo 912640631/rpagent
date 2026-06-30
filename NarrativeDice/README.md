@@ -4,17 +4,17 @@ AI GM 可直接使用 [最短使用说明](AI-QUICKSTART.md)。
 
 这是供 AI GM 调用的独立 Node.js 工具。AI 决定何时判定、难度、修正、杰洛特是否有资格使用希望优势，以及如何叙述结果；工具只掷骰并管理希望、绝望。无需运行 CombatEngine。
 
-同一局需要衔接 CombatEngine 时，使用仓库根目录 `cli.js` 和 [完整 AI 提示词](../AI-QUICKSTART.md)，让叙事与战斗共用账本；独立 CLI 的状态文件不会自动与战斗同步，不要混写同一存档。
+同一局需要衔接 CombatEngine 时，使用仓库根目录 `cli.ts` 和 [完整 AI 提示词](../AI-QUICKSTART.md)，让叙事与战斗共用账本；独立 CLI 的状态文件不会自动与战斗同步，不要混写同一存档。
 
 ## 命令行
 
-在仓库根目录运行，一次调用向标准输入发送一个 JSON 命令，标准输出返回一个 JSON 对象。默认状态保存在 `NarrativeDice/.local/session.json`，也可用 `--state <路径>` 指定其他任务的状态文件。首次调用自动建立 2 希望、0 绝望的状态；只有 `reset` 会清空资源和历史。
+需要 Node.js 24+，可直接运行 TypeScript CLI，无需预先构建。在仓库根目录运行，一次调用向标准输入发送一个 JSON 命令，标准输出返回一个 JSON 对象。默认状态保存在 `NarrativeDice/.local/session.json`，也可用 `--state <路径>` 指定其他任务的状态文件。首次调用自动建立 2 希望、0 绝望的状态；只有 `reset` 会清空资源和历史。
 
 ```powershell
-'{"action":"status"}' | node NarrativeDice/cli.js
-'{"action":"roll","difficulty":15,"modifier":2,"useHopeAdvantage":true}' | node NarrativeDice/cli.js
-'{"action":"spendFear"}' | node NarrativeDice/cli.js
-'{"action":"reset"}' | node NarrativeDice/cli.js
+'{"action":"status"}' | node NarrativeDice/cli.ts
+'{"action":"roll","difficulty":15,"modifier":2,"useHopeAdvantage":true}' | node NarrativeDice/cli.ts
+'{"action":"spendFear"}' | node NarrativeDice/cli.ts
+'{"action":"reset"}' | node NarrativeDice/cli.ts
 ```
 
 `roll` 的 `difficulty` 必须是正整数，`modifier` 是可选的整数（默认 0），`useHopeAdvantage` 是可选的布尔值（默认 `false`）。购买优势先扣 2 希望，再加 3 到总和；希望不足时拒绝判定且不掷骰。`spendFear` 只扣 2 绝望，GM Move 或 Fear Feature 的选择与发动条件由 AI 判断。绝望不足时拒绝消费。错误响应为 `{ "ok": false, "error": { "code": "...", "message": "..." } }`，进程退出码为 1。
@@ -30,7 +30,7 @@ AI GM 可直接使用 [最短使用说明](AI-QUICKSTART.md)。
 ## JavaScript API
 
 ```js
-import { createEngine } from './NarrativeDice/index.js';
+import { createEngine } from './NarrativeDice/index.ts';
 
 const engine = createEngine({ statePath: './my-side-quest.json' });
 const result = await engine.roll({ difficulty: 15, modifier: 2, useHopeAdvantage: true });

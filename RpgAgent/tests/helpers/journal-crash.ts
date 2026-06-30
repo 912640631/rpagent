@@ -2,12 +2,12 @@ import fs from 'node:fs';
 import { syncBuiltinESMExports } from 'node:module';
 import { resolve } from 'node:path';
 
-const target = resolve(process.env.WITCHER_TEST_JOURNAL);
+const target = resolve(process.env.WITCHER_TEST_JOURNAL!);
 const stage = process.env.WITCHER_TEST_JOURNAL_STAGE;
 const append = fs.appendFileSync;
 fs.appendFileSync = function (path, data, options) {
   if (resolve(String(path)) !== target) return append(path, data, options);
-  const record = JSON.parse(String(data));
+  const record = JSON.parse(typeof data === 'string' ? data : Buffer.from(data).toString('utf8'));
   if (stage === 'after-text' && record.event?.type === 'request.chunk' && record.event.chunk.type === 'text') {
     append(path, data, options); process.exit(74);
   }

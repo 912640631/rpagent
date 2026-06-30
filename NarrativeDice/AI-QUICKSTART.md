@@ -1,15 +1,15 @@
 # 给 AI GM 的最短使用说明
 
-同一局会进入 CombatEngine 战斗时，请直接复制 [统一冒险 AI 提示词](../AI-QUICKSTART.md)，使用根目录 `cli.js`。它覆盖冒险判定、开战、逐步行动和战后继续冒险；下面的独立 CLI 状态不会与战斗共享，不要混用。
+同一局会进入 CombatEngine 战斗时，请直接复制 [统一冒险 AI 提示词](../AI-QUICKSTART.md)，使用根目录 `cli.ts`。它覆盖冒险判定、开战、逐步行动和战后继续冒险；下面的独立 CLI 状态不会与战斗共享，不要混用。
 
 在仓库根目录运行以下 PowerShell 命令。每次调用只发送一个 JSON 对象；只读取返回 JSON 的 `result`。状态自动保存在 `NarrativeDice/.local/session.json`，跨调用保留。
 
 ```powershell
-'{"action":"status"}' | node NarrativeDice/cli.js
-'{"action":"roll","difficulty":15,"modifier":2}' | node NarrativeDice/cli.js
-'{"action":"roll","difficulty":15,"modifier":2,"useHopeAdvantage":true}' | node NarrativeDice/cli.js
-'{"action":"spendFear"}' | node NarrativeDice/cli.js
-'{"action":"reset"}' | node NarrativeDice/cli.js
+'{"action":"status"}' | node NarrativeDice/cli.ts
+'{"action":"roll","difficulty":15,"modifier":2}' | node NarrativeDice/cli.ts
+'{"action":"roll","difficulty":15,"modifier":2,"useHopeAdvantage":true}' | node NarrativeDice/cli.ts
+'{"action":"spendFear"}' | node NarrativeDice/cli.ts
+'{"action":"reset"}' | node NarrativeDice/cli.ts
 ```
 
 | 命令 | 何时调用 |

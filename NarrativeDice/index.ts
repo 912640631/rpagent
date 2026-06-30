@@ -4,19 +4,51 @@ import { dirname, resolve } from 'node:path';
 
 export const DEFAULT_STATE_PATH = resolve('NarrativeDice/.local/session.json');
 
+export interface NarrativeState {
+  version: 1;
+  hope: number;
+  fear: number;
+  history: Array<{ id: number; type: string; at: string; result: unknown }>;
+}
+
+export interface RollInput { difficulty: number; modifier?: number; useHopeAdvantage?: boolean }
+export interface Resources { hope: number; fear: number }
+export interface RollResult {
+  outcome: 'critical_success' | 'success_hope' | 'success_fear' | 'failure_hope' | 'failure_fear';
+  success: boolean;
+  critical: boolean;
+  bearing: 'hope' | 'fear';
+  dice: { hope: number; fear: number };
+  difficulty: number;
+  modifier: number;
+  advantageBonus: number;
+  total: number;
+  hopeSpent: number;
+  hopeGained: number;
+  fearGained: number;
+  immediateComplication: boolean;
+  consequence: 'minor_complication' | 'light' | 'serious' | 'none';
+  extraBenefit: boolean;
+  initiative: 'player' | 'gm';
+  resources: Resources;
+}
+export interface FearSpendResult { fearSpent: number; resources: Resources }
+
 export class DiceError extends Error {
-  constructor(code, message) {
+  code: string;
+  constructor(code: string, message: string) {
     super(message);
     this.name = 'DiceError';
     this.code = code;
   }
 }
 
-export function initialState() {
+export function initialState(): NarrativeState {
   return { version: 1, hope: 2, fear: 0, history: [] };
 }
 
-function assertState(state) {
+function assertState(value: unknown): NarrativeState {
+  const state = value as NarrativeState;
   if (
     !state || state.version !== 1 ||
     !Number.isInteger(state.hope) || state.hope < 0 || state.hope > 6 ||
@@ -28,7 +60,8 @@ function assertState(state) {
   return state;
 }
 
-function validateRoll(input) {
+function validateRoll(value: unknown): Required<RollInput> {
+  const input = value as RollInput;
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
     throw new DiceError('INVALID_ROLL', '判定参数必须是对象');
   }
@@ -45,7 +78,7 @@ function validateRoll(input) {
   return { difficulty, modifier, useHopeAdvantage };
 }
 
-function checkedDie(rollDie) {
+function checkedDie(rollDie: () => number): number {
   const value = rollDie();
   if (!Number.isInteger(value) || value < 1 || value > 12) {
     throw new DiceError('INVALID_DIE', '骰子函数必须返回 1 至 12 的整数');
@@ -53,7 +86,7 @@ function checkedDie(rollDie) {
   return value;
 }
 
-export function resolveRoll(state, input, rollDie = () => randomInt(1, 13)) {
+export function resolveRoll(state: NarrativeState, input: RollInput, rollDie = () => randomInt(1, 13)) {
   assertState(state);
   const { difficulty, modifier, useHopeAdvantage } = validateRoll(input);
   if (useHopeAdvantage && state.hope < 2) {
@@ -71,7 +104,7 @@ export function resolveRoll(state, input, rollDie = () => randomInt(1, 13)) {
   const critical = hopeDie === fearDie;
   const success = critical || total >= difficulty;
   const bearing = critical || hopeDie > fearDie ? 'hope' : 'fear';
-  const outcome = critical ? 'critical_success' : `${success ? 'success' : 'failure'}_${bearing}`;
+  const outcome: RollResult['outcome'] = critical ? 'critical_success' : `${success ? 'success' : 'failure'}_${bearing}`;
   const hopeSpent = useHopeAdvantage ? 2 : 0;
   const hopeAfterPayment = state.hope - hopeSpent;
   const hopeGained = bearing === 'hope' ? Math.min(1, 6 - hopeAfterPayment) : 0;
@@ -82,7 +115,7 @@ export function resolveRoll(state, input, rollDie = () => randomInt(1, 13)) {
     fear: state.fear + fearGained,
     history: [...state.history],
   };
-  const result = {
+  const result: RollResult = {
     outcome,
     success,
     critical,
@@ -112,7 +145,7 @@ export function resolveRoll(state, input, rollDie = () => randomInt(1, 13)) {
   return { state: next, result };
 }
 
-export function resolveFearSpend(state) {
+export function resolveFearSpend(state: NarrativeState) {
   assertState(state);
   if (state.fear < 2) {
     throw new DiceError('INSUFFICIENT_FEAR', '绝望值不足 2 点');
@@ -132,7 +165,7 @@ export function resolveFearSpend(state) {
   return { state: next, result };
 }
 
-async function saveState(statePath, state) {
+async function saveState(statePath: string, state: NarrativeState): Promise<void> {
   await mkdir(dirname(statePath), { recursive: true });
   const temporaryPath = `${statePath}.${process.pid}.${randomInt(0, 0x100000000).toString(16)}.tmp`;
   try {
@@ -144,11 +177,11 @@ async function saveState(statePath, state) {
   }
 }
 
-async function loadState(statePath) {
+async function loadState(statePath: string): Promise<NarrativeState> {
   try {
     return assertState(JSON.parse(await readFile(statePath, 'utf8')));
   } catch (error) {
-    if (error.code === 'ENOENT') {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       const state = initialState();
       await saveState(statePath, state);
       return state;
@@ -160,13 +193,13 @@ async function loadState(statePath) {
   }
 }
 
-export function createEngine({ statePath = DEFAULT_STATE_PATH, rollDie } = {}) {
+export function createEngine({ statePath = DEFAULT_STATE_PATH, rollDie }: { statePath?: string; rollDie?: () => number } = {}) {
   const path = resolve(statePath);
   return {
     async status() {
       return loadState(path);
     },
-    async roll(input) {
+    async roll(input: RollInput) {
       const current = await loadState(path);
       const { state, result } = resolveRoll(current, input, rollDie);
       await saveState(path, state);

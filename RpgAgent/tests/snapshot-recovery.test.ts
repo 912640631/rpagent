@@ -27,7 +27,7 @@ for (const stage of ['restore.json', 'rules.json', 'journal.ndjson']) {
     await service.close();
     const directory = join(root, 'adventures', id);
     const child = spawnSync(process.execPath, [
-      '--import', new URL('./helpers/restore-crash.mjs', import.meta.url).href,
+      '--import', new URL('./helpers/restore-crash.ts', import.meta.url).href,
       '--import', 'tsx', fileURLToPath(new URL('./helpers/restore-worker.ts', import.meta.url)), root, id, saved.id,
     ], { encoding: 'utf8', timeout: 15_000, env: { ...process.env,
       WITCHER_TEST_RESTORE_DIRECTORY: directory, WITCHER_TEST_RESTORE_EXIT_AFTER: stage } });

@@ -34,5 +34,5 @@ npm run web
 | [CombatEngine](CombatEngine/README.md) | 战斗规则、行动校验与权威状态账本 |
 | [NarrativeDice](NarrativeDice/README.md) | 叙事判定与希望／绝望资源结算 |
 
-`npm run build` 构建全部模块；`npm test` 构建并运行引擎、Agent、Web、前端及 CLI 测试。另提供 [独立 RPG Agent CLI](RpgAgent/README.md) 和根目录 `cli.js` JSON 规则入口。
+`npm run build` 构建全部模块；`npm test` 构建并运行引擎、Agent、Web、前端及 CLI 测试。另提供 [独立 RPG Agent CLI](RpgAgent/README.md) 和根目录 `cli.ts` JSON 规则入口。
 

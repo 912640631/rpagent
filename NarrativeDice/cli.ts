@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { createEngine, DiceError } from './index.js';
+import { createEngine, DiceError } from './index.ts';
 
 async function readStdin() {
   let input = '';
@@ -10,7 +10,7 @@ async function readStdin() {
 async function main() {
   const args = process.argv.slice(2);
   if (args.length !== 0 && (args.length !== 2 || args[0] !== '--state' || !args[1])) {
-    throw new DiceError('INVALID_ARGUMENTS', '用法：node NarrativeDice/cli.js [--state 路径]，从 stdin 读取一条 JSON 命令');
+    throw new DiceError('INVALID_ARGUMENTS', '用法：node NarrativeDice/cli.ts [--state 路径]，从 stdin 读取一条 JSON 命令');
   }
   const command = JSON.parse(await readStdin());
   if (!command || typeof command !== 'object' || Array.isArray(command)) {
@@ -30,6 +30,7 @@ async function main() {
 
 main().catch((error) => {
   const code = error instanceof DiceError ? error.code : 'INTERNAL_ERROR';
-  process.stdout.write(`${JSON.stringify({ ok: false, error: { code, message: error.message } })}\n`);
+  const message = error instanceof Error ? error.message : String(error);
+  process.stdout.write(`${JSON.stringify({ ok: false, error: { code, message } })}\n`);
   process.exitCode = 1;
 });

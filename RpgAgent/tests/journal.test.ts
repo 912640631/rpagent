@@ -89,7 +89,7 @@ for (const stage of ['before-tool', 'after-rule', 'partial-input', 'partial-tool
     const setup = open(); const id = setup.create('执行边界').id;
     await setup.save(id, '初始化随机数'); await setup.close();
     const path = join(root, 'adventures', id, 'journal.ndjson');
-    const child = spawnSync(process.execPath, ['--import', new URL('./helpers/journal-crash.mjs', import.meta.url).href,
+    const child = spawnSync(process.execPath, ['--import', new URL('./helpers/journal-crash.ts', import.meta.url).href,
       '--import', 'tsx', fileURLToPath(new URL('./helpers/journal-worker.ts', import.meta.url)), root, id], {
       encoding: 'utf8', timeout: 15000, env: { ...process.env, WITCHER_TEST_JOURNAL: path, WITCHER_TEST_JOURNAL_STAGE: stage }
     });

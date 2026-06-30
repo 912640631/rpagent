@@ -4,8 +4,8 @@ import { dirname, join, resolve } from 'node:path';
 
 // Runs only in the crash-test child. Inject failure at the filesystem boundary,
 // after the real atomic replacement has completed, without mocking application modules.
-const directory = resolve(process.env.WITCHER_TEST_RESTORE_DIRECTORY);
-const target = join(directory, process.env.WITCHER_TEST_RESTORE_EXIT_AFTER);
+const directory = resolve(process.env.WITCHER_TEST_RESTORE_DIRECTORY!);
+const target = join(directory, process.env.WITCHER_TEST_RESTORE_EXIT_AFTER!);
 const rename = fs.renameSync;
 fs.renameSync = function (from, to) {
   const result = rename(from, to);

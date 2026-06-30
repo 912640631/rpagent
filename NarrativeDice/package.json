@@ -3,14 +3,26 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": "./index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "bin": {
-    "narrative-dice": "./cli.js"
+    "narrative-dice": "./cli.ts"
   },
   "scripts": {
-    "test": "node --test"
+    "build": "tsc -p tsconfig.json",
+    "test": "node --import tsx --test index.test.ts"
   },
   "engines": {
     "node": ">=24"
+  },
+  "types": "./dist/index.d.ts",
+  "devDependencies": {
+    "@types/node": "^24.19.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
   }
 }

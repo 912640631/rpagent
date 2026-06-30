@@ -29,17 +29,17 @@ source.actors.venomous_arachas.parts.carapace.name_zh = '甲壳';
 delete source.actors.venomous_arachas.parts.front_carapace;
 delete source.actors.venomous_arachas.traits.armored_front;
 source.global.monster_difficulty_scale.description_zh = '衡量一只怪物对当前杰洛特模板的综合威胁。';
-const rewrites = {
+const rewrites: Record<string, string> = {
   another_allied_pack_hunter_is_engaging_same_target: 'another_allied_pack_hunter_present',
   at_least_one_other_allied_pack_hunter_is_engaging_same_target: 'another_allied_pack_hunter_present',
   two_or_more_allied_nekkers_are_engaging_same_target: 'two_or_more_allied_nekkers_present',
   another_allied_insectoid_is_engaging_same_target: 'another_allied_insectoid_present'
 };
-function walk(value) {
+function walk(value: unknown): void {
   if (Array.isArray(value)) return value.forEach(walk);
   if (!value || typeof value !== 'object') return;
   for (const [key, entry] of Object.entries(value)) {
-    if (key === 'condition' && typeof entry === 'string' && rewrites[entry]) value[key] = rewrites[entry];
+    if (key === 'condition' && typeof entry === 'string' && rewrites[entry]) (value as Record<string, unknown>)[key] = rewrites[entry];
     else walk(entry);
   }
 }

@@ -3,12 +3,12 @@ import { spawnSync } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import test from 'node:test';
-import { createEngine, initialState, resolveFearSpend, resolveRoll } from './index.js';
+import test, { type TestContext } from 'node:test';
+import { createEngine, initialState, resolveFearSpend, resolveRoll, type NarrativeState, type RollResult } from './index.ts';
 
-function fixedDice(hope, fear) {
+function fixedDice(hope: number, fear: number): () => number {
   const values = [hope, fear];
-  return () => values.shift();
+  return () => values.shift()!;
 }
 
 test('four regular outcomes give the correct resource and narration signals', () => {
@@ -17,7 +17,7 @@ test('four regular outcomes give the correct resource and narration signals', ()
     [4, 9, 10, 'success_fear', true, 'gm', 'minor_complication', 0, 1],
     [8, 3, 15, 'failure_hope', false, 'gm', 'light', 1, 0],
     [3, 8, 15, 'failure_fear', false, 'gm', 'serious', 0, 1],
-  ];
+  ] as const;
   for (const [hopeDie, fearDie, difficulty, outcome, success, initiative, consequence, hopeGained, fearGained] of cases) {
     const { state, result } = resolveRoll(initialState(), { difficulty }, fixedDice(hopeDie, fearDie));
     assert.equal(result.outcome, outcome);
@@ -52,7 +52,7 @@ test('advantage costs two Hope before the roll and stacks with modifier', () => 
   assert.equal(result.hopeSpent, 2);
   assert.equal(result.hopeGained, 1);
   assert.equal(state.hope, 1);
-  assert.equal(state.history[0].result.resources.hope, 1);
+  assert.equal((state.history[0]!.result as RollResult).resources.hope, 1);
 });
 
 test('Hope cap discards excess gained on a roll', () => {
@@ -67,7 +67,7 @@ test('Fear gained on a roll can be spent immediately', () => {
   assert.equal(fearRoll.state.fear, 12);
   const spent = resolveFearSpend(fearRoll.state);
   assert.equal(spent.state.fear, 10);
-  assert.equal(spent.state.history.at(-1).type, 'spend_fear');
+  assert.equal(spent.state.history.at(-1)!.type, 'spend_fear');
 });
 test('Fear cap discards excess without removing the immediate complication', () => {
   const capped = resolveRoll({ ...initialState(), fear: 12 }, { difficulty: 10 }, fixedDice(2, 9));
@@ -89,12 +89,12 @@ test('invalid or unaffordable calls do not roll dice or mutate state', () => {
   assert.deepEqual(state, initialState());
 });
 
-async function cliFixture(t) {
+async function cliFixture(t: TestContext) {
   const directory = await mkdtemp(join(tmpdir(), 'narrative-dice-'));
   const statePath = join(directory, 'session.json');
-  const cli = join(import.meta.dirname, 'cli.js');
+  const cli = join(import.meta.dirname, 'cli.ts');
   t.after(() => rm(directory, { recursive: true, force: true }));
-  function call(command) {
+  function call(command: { action: 'status' | 'reset' }): NarrativeState {
     const run = spawnSync(process.execPath, [cli, '--state', statePath], {
       input: JSON.stringify(command),
       encoding: 'utf8',
@@ -113,7 +113,7 @@ test('CLI retains the complete history across processes', async t => {
   const after = call({ action: 'status' });
   assert.equal(after.fear, 1);
   assert.equal(after.history.length, 1);
-  assert.equal(after.history[0].result.immediateComplication, true);
+  assert.equal((after.history[0]!.result as RollResult).immediateComplication, true);
   assert.deepEqual(await createEngine({ statePath }).status(), after);
 });
 test('CLI reset explicitly clears existing history and resources', async t => {
